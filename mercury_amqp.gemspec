@@ -4,13 +4,13 @@ $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
 require 'mercury/version'
 
 Gem::Specification.new do |spec|
-  spec.name          = 'mercury'
+  spec.name          = 'mercury_amqp'
   spec.version       = Mercury::VERSION
   spec.authors       = ['Peter Winton']
   spec.email         = ['wintonpc@gmail.com']
   spec.summary       = 'AMQP-backed messaging layer'
   spec.description   = 'Abstracts common patterns used with AMQP'
-  spec.homepage      = 'https://github.com/wintonpc/mercury'
+  spec.homepage      = 'https://github.com/wintonpc/mercury_amqp'
   spec.license       = 'MIT'
 
   spec.files         = `git ls-files -z`.split("\x0")
