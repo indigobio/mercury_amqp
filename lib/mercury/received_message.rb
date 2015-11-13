@@ -12,6 +12,10 @@ class Mercury
       metadata.routing_key
     end
 
+    def headers
+      metadata.headers
+    end
+
     def ack
       @is_ackable or raise 'This message is not ackable'
       metadata.ack

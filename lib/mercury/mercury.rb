@@ -2,12 +2,12 @@ require 'amqp'
 require 'securerandom'
 require 'mercury/wire_serializer'
 require 'mercury/received_message'
-require 'logger'
+require 'logatron/logatron'
 
 class Mercury
   attr_reader :amqp, :channel, :logger
 
-  def self.open(logger: Logger.new(STDOUT), **kws, &k)
+  def self.open(logger: Logatron, **kws, &k)
     @logger = logger
     new(**kws, &k)
     nil
@@ -36,19 +36,19 @@ class Mercury
   end
   private_class_method :new
 
-  def publish(source_name, msg, tag: '', &k)
+  def publish(source_name, msg, tag: '', headers: {}, &k)
     # The amqp gem caches exchange objects, so it's fine to
     # redeclare the exchange every time we publish.
     # TODO: wait for publish confirmations (@channel.on_ack)
     with_source(source_name) do |exchange|
-      exchange.publish(write(msg), **Mercury.publish_opts(tag)) do
+      exchange.publish(write(msg), **Mercury.publish_opts(tag, headers)) do
         k.call
       end
     end
   end
 
-  def self.publish_opts(tag)
-    { routing_key: tag, persistent: true }
+  def self.publish_opts(tag, headers)
+    { routing_key: tag, persistent: true, headers: Logatron.http_headers.merge(headers) }
   end
 
   def start_listener(source_name, handler, tag_filter: '#', &k)
@@ -108,7 +108,9 @@ class Mercury
   private
 
   def make_received_message(payload, metadata, is_ackable)
-    ReceivedMessage.new(read(payload), metadata, is_ackable: is_ackable)
+    msg = ReceivedMessage.new(read(payload), metadata, is_ackable: is_ackable)
+    Logatron.msg_id = msg.headers['X-Ascent-Log-Id']
+    msg
   end
 
   def existence_check(k, &check)

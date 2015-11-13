@@ -20,8 +20,8 @@ class Mercury
         deliver # new subscriber probably wants a message
       end
 
-      def enqueue(msg, tag)
-        msgs.push(QueuedMessage.new(self, msg, tag, @require_ack))
+      def enqueue(msg, tag, headers)
+        msgs.push(QueuedMessage.new(self, msg, tag, headers, @require_ack))
         deliver # new message. someone probably wants it.
       end
 

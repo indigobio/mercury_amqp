@@ -28,9 +28,9 @@ class Mercury
       ret(k)
     end
 
-    def publish(source_name, msg, tag: '', &k)
+    def publish(source_name, msg, tag: '', headers: {}, &k)
       assert_not_closed
-      queues.values.select{|q| q.binds?(source_name, tag)}.each{|q| q.enqueue(roundtrip(msg), tag)}
+      queues.values.select{|q| q.binds?(source_name, tag)}.each{|q| q.enqueue(roundtrip(msg), tag, headers)}
       ret(k)
     end
 
