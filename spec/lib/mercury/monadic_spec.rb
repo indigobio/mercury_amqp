@@ -2,6 +2,8 @@ require 'rspec'
 require 'spec_helper'
 require 'mercury'
 require 'mercury/monadic'
+require 'securerandom'
+require 'logatron/logatron'
 
 describe Mercury::Monadic do
   include Cps::Methods
@@ -60,6 +62,38 @@ describe Mercury::Monadic do
           expect(msgs[0].tag).to eql(tag1)
           expect(msgs[1].content).to eql(msg3)
           expect(msgs[1].tag).to eql(tag1)
+        end
+      end
+    end
+  end
+
+  itt 'sends and receives headers' do
+    test_with_mercury do |m|
+      msgs = []
+      seql do
+        and_then { m.start_listener(source, &msgs.method(:push)) }
+        and_then { m.publish(source, msg, headers: {'foo' => 'bar'}) }
+        and_then { wait_until { msgs.size == 1 } }
+        and_lift do
+          expect(msgs[0].headers['foo']).to eql 'bar'
+        end
+      end
+    end
+  end
+
+  it 'propagates logatron headers' do
+    real_msg_id = SecureRandom.uuid
+    Logatron.msg_id = real_msg_id
+    test_with_mercury do |m|
+      msgs = []
+      seql do
+        and_then { m.start_listener(source, &msgs.method(:push)) }
+        and_then { m.publish(source, msg) }
+        and_lift { Logatron.msg_id = 'fake_msg_id' }
+        and_then { wait_until { msgs.size == 1 } }
+        and_lift do
+          expect(msgs[0].headers['X-Ascent-Log-Id']).to eql real_msg_id
+          expect(Logatron.msg_id).to eql real_msg_id
         end
       end
     end

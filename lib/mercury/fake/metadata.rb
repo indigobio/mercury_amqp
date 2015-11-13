@@ -1,10 +1,13 @@
 class Mercury
   class Fake
     class Metadata
-      def initialize(tag, dequeue, requeue)
+      attr_reader :headers
+
+      def initialize(tag, headers, dequeue, requeue)
         @tag = tag
         @dequeue = dequeue
         @requeue = requeue
+        @headers = headers
       end
 
       def routing_key

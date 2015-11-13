@@ -10,7 +10,7 @@ class Mercury
         ch = conn.create_channel
         ch.confirm_select
         ex = ch.topic(source_name, Mercury.source_opts)
-        ex.publish(WireSerializer.new.write(msg), **Mercury.publish_opts(tag))
+        ex.publish(WireSerializer.new.write(msg), **Mercury.publish_opts(tag, {}))
         ch.wait_for_confirms or raise 'failed to confirm publication'
       ensure
         conn.close
