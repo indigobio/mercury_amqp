@@ -13,7 +13,7 @@ class Mercury
     end
 
     def headers
-      metadata.headers
+      metadata.headers || {}
     end
 
     def ack
