@@ -48,6 +48,46 @@ describe Mercury::Monadic do
     end
   end
 
+  itt 'broadcasts messages to listeners' do
+    test_with_mercury do |m|
+      msgs1 = []
+      msgs2 = []
+      seql do
+        and_then { m.start_listener(source1, &msgs1.method(:push)) }
+        and_then { m.start_listener(source1, &msgs2.method(:push)) }
+        and_then { m.publish(source1, msg1) }
+        and_then { wait_until { msgs1.size == 1 && msgs2.size == 1 } }
+        and_lift do
+          expect(msgs1[0].content).to eql(msg1)
+          expect(msgs2[0].content).to eql(msg1)
+        end
+      end
+    end
+  end
+
+  itt 'it receives messages in parallel' do
+    test_with_mercury(parallelism: 2) do |m|
+      events = []
+      handle_msg = proc do |msg|
+        content = msg.content
+        events.push "received #{content['id']}"
+        EventMachine.add_timer(content['sleep_seconds']) do
+          events.push "finished #{content['id']}"
+          msg.ack
+        end
+      end
+      seql do
+        and_then { m.start_worker('worker1', source1, handle_msg) }
+        and_then { m.publish(source1, {'id' => 1, 'sleep_seconds' => 0.01}) }
+        and_then { m.publish(source1, {'id' => 2, 'sleep_seconds' => 0.01}) }
+        and_then { wait_until { events.size == 4 } }
+        and_lift do
+          expect(events).to eql ['received 1', 'received 2', 'finished 1', 'finished 2']
+        end
+      end
+    end
+  end
+
   itt 'sends and receives tagged messages' do
     test_with_mercury do |m|
       msgs = []
@@ -338,10 +378,10 @@ describe Mercury::Monadic do
   end
 
   # the block must return a Cps
-  def test_with_mercury(&block)
+  def test_with_mercury(parallelism: 1, &block)
     sources = [source1, source2]
     queues = [queue1, queue2]
-    test_with_mercury_cps(sources, queues, &block)
+    test_with_mercury_cps(sources, queues, parallelism: parallelism, &block)
   end
 end
 

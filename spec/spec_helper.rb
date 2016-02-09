@@ -4,10 +4,10 @@ require 'mercury/fake'
 include Mercury::TestUtils
 
 # the block must return a Cps
-def test_with_mercury_cps(sources, queues, &block)
+def test_with_mercury_cps(sources, queues, parallelism: 1, &block)
   em do
     seql do
-      let(:m)  { Mercury::Monadic.open }
+      let(:m)  { Mercury::Monadic.open(parallelism: parallelism) }
       and_then { delete_sources_and_queues_cps(sources, queues) }
       and_then { block.call(m) }
       and_then { delete_sources_and_queues_cps(sources, queues) }
@@ -28,8 +28,8 @@ module MercuryFakeSpec
       it(name, &block)
       context 'with Mercury::Fake' do
         before :each do
-          allow(Mercury).to receive(:open) do |&k|
-            EM.next_tick { k.call(Mercury::Fake.new) }
+          allow(Mercury).to receive(:open) do |parallelism:1, &k|
+            EM.next_tick { k.call(Mercury::Fake.new(parallelism: parallelism)) }
           end
         end
         it(name, &block)

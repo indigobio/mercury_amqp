@@ -27,13 +27,13 @@ class Mercury
 
       def ack_or_reject_message(msg)
         msgs.delete(msg) or raise 'tried to delete message that was not in queue!!'
-        msg.subscriber.busy = false
+        msg.subscriber.handle_capacity += 1
         deliver # a subscriber just freed up
       end
 
       def nack(msg)
         msg.delivered = false
-        msg.subscriber.busy = false
+        msg.subscriber.handle_capacity += 1
         deliver
       end
 
@@ -57,7 +57,7 @@ class Mercury
             subscriber = idle_subscribers.sample
             if @require_ack
               msg.delivered = true
-              subscriber.busy = true
+              subscriber.handle_capacity -= 1
             else
               msgs.delete(msg)
             end
@@ -73,7 +73,7 @@ class Mercury
       end
 
       def idle_subscribers
-        subscribers.reject(&:busy)
+        subscribers.reject { |s| s.handle_capacity == 0 }
       end
     end
   end

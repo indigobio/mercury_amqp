@@ -24,10 +24,11 @@ class Mercury
                  vhost: '/',
                  username: 'guest',
                  password: 'guest',
+                 parallelism: 1,
                  &k)
     AMQP.connect(host: host, port: port, vhost: vhost, username: username, password: password) do |amqp|
       @amqp = amqp
-      @channel = AMQP::Channel.new(amqp, prefetch: 1) do
+      @channel = AMQP::Channel.new(amqp, prefetch: parallelism) do
         @channel.confirm_select
         install_default_error_handler
         k.call(self)

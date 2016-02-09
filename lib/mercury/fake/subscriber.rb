@@ -2,11 +2,11 @@ class Mercury
   class Fake
     class Subscriber
       attr_reader :handler
-      attr_accessor :busy
+      attr_accessor :handle_capacity
 
-      def initialize(handler)
+      def initialize(handler, handle_capacity)
         @handler = handler
-        @busy = false
+        @handle_capacity = handle_capacity
       end
     end
   end

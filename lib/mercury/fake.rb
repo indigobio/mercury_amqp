@@ -15,8 +15,9 @@ require 'mercury/fake/subscriber'
 # broken sockets, etc.
 class Mercury
   class Fake
-    def initialize(domain=:default)
+    def initialize(domain=:default, parallelism: 1)
       @domain = Fake.domains[domain]
+      @parallelism = parallelism
     end
 
     def self.domains
@@ -46,7 +47,7 @@ class Mercury
       assert_not_closed
       q = ensure_queue(source_name, tag_filter, !!worker_group, worker_group)
       ret(k) # it's important we show the "start" operation finishing before delivery starts (in add_subscriber)
-      q.add_subscriber(Subscriber.new(handler))
+      q.add_subscriber(Subscriber.new(handler, @parallelism))
     end
     private :start_worker_or_listener
 
