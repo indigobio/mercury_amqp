@@ -13,85 +13,87 @@ require 'mercury/utils'
 # passing. It basically wraps a CPS proc with methods for
 # composing them.
 # See http://codon.com/refactoring-ruby-with-monads
-class Cps
-  attr_reader :cps
+class Mercury
+  class Cps
+    attr_reader :cps
 
-  # @param [Proc] cps a CPS proc (signature: *args, &k)
-  def initialize(&cps)
-    @cps = cps
-  end
+    # @param [Proc] cps a CPS proc (signature: *args, &k)
+    def initialize(&cps)
+      @cps = cps
+    end
 
-  # Applies the wrapped proc. If the CPS return value
-  # is not needed, the continuation k may be omitted.
-  # Returns the return value of the continuation.
-  def run(*args, &k)
-    k ||= proc { |x| x }
-    cps.call(*args, &k)
-  end
+    # Applies the wrapped proc. If the CPS return value
+    # is not needed, the continuation k may be omitted.
+    # Returns the return value of the continuation.
+    def run(*args, &k)
+      k ||= proc { |x| x }
+      cps.call(*args, &k)
+    end
 
-  # The "bind" operation; composes two Cps
-  # @param [Proc] pm a proc that takes the output of this
-  #   Cps and returns a Cps
-  def and_then(&pm)
-    Cps.new do |*args, &k|
-      self.run(*args) do |*args2|
-        next_cps = pm.call(*args2)
-        next_cps.is_a?(Cps) or raise "'and_then' block did not return a Cps. Did you want 'and_lift'? at #{pm.source_location}"
-        next_cps.run(&k)
+    # The "bind" operation; composes two Cps
+    # @param [Proc] pm a proc that takes the output of this
+    #   Cps and returns a Cps
+    def and_then(&pm)
+      Cps.new do |*args, &k|
+        self.run(*args) do |*args2|
+          next_cps = pm.call(*args2)
+          next_cps.is_a?(Cps) or raise "'and_then' block did not return a Cps. Did you want 'and_lift'? at #{pm.source_location}"
+          next_cps.run(&k)
+        end
       end
     end
-  end
 
-  # equivalent to: and_then { lift { ... } }
-  def and_lift(&p)
-    and_then do |*args|
-      Cps.lift { p.call(*args) }
+    # equivalent to: and_then { lift { ... } }
+    def and_lift(&p)
+      and_then do |*args|
+        Cps.lift { p.call(*args) }
+      end
     end
-  end
 
-  # Returns a Cps for a non-CPS proc.
-  def self.lift(&p)
-    new { |*args, &k| k.call(p.call(*args)) }
-  end
+    # Returns a Cps for a non-CPS proc.
+    def self.lift(&p)
+      new { |*args, &k| k.call(p.call(*args)) }
+    end
 
-  # The identity function as a Cps.
-  def self.identity
-    new { |*args, &k| k.call(*args) }
-  end
+    # The identity function as a Cps.
+    def self.identity
+      new { |*args, &k| k.call(*args) }
+    end
 
-  # Returns a Cps that executes the provided Cpses concurrently.
-  # Once all complete, their return values are passed to the continuation
-  # in an array with positions corresponding to the provided Cpses.
-  def self.concurrently(*cpss)
-    cpss = Utils.unsplat(cpss)
+    # Returns a Cps that executes the provided Cpses concurrently.
+    # Once all complete, their return values are passed to the continuation
+    # in an array with positions corresponding to the provided Cpses.
+    def self.concurrently(*cpss)
+      cpss = Utils.unsplat(cpss)
 
-    Cps.new do |*in_args, &k|
-      pending_completions = cpss
-      returned_args = []
-      cpss.each_with_index do |cps, i|
-        cps.run(*in_args) do |*out_args|
-          returned_args[i] = out_args
-          pending_completions.delete(cps)
-          if pending_completions.none?
-            k.call(returned_args)
+      Cps.new do |*in_args, &k|
+        pending_completions = cpss
+        returned_args = []
+        cpss.each_with_index do |cps, i|
+          cps.run(*in_args) do |*out_args|
+            returned_args[i] = out_args
+            pending_completions.delete(cps)
+            if pending_completions.none?
+              k.call(returned_args)
+            end
           end
         end
       end
     end
-  end
 
-  # Calls and_then for each x.
-  # @yieldparam  x     [Object]  An item from xs
-  # @yieldparam  *args [Objects] The value(s) passed from the last action
-  # @yieldreturn       [Cps]     The next action to add to the chain
-  def inject(xs, &block)
-    xs.inject(self) do |chain, x|
-      chain.and_then { |*args| block.call(x, *args) }
+    # Calls and_then for each x.
+    # @yieldparam  x     [Object]  An item from xs
+    # @yieldparam  *args [Objects] The value(s) passed from the last action
+    # @yieldreturn       [Cps]     The next action to add to the chain
+    def inject(xs, &block)
+      xs.inject(self) do |chain, x|
+        chain.and_then { |*args| block.call(x, *args) }
+      end
     end
-  end
 
-  # equivalent to Cps.identity.inject(...)
-  def self.inject(xs, &block)
-    Cps.identity.inject(xs, &block)
+    # equivalent to Cps.identity.inject(...)
+    def self.inject(xs, &block)
+      Cps.identity.inject(xs, &block)
+    end
   end
 end

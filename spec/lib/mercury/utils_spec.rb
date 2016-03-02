@@ -1,6 +1,8 @@
 require 'spec_helper'
 require 'mercury/utils'
 
+Utils = Mercury::Utils
+
 describe Utils do
   describe '::unsplat' do
     it 'allows args to be provided in splatted form' do
