@@ -97,3 +97,5 @@ class Mercury
     end
   end
 end
+
+Cps = Mercury::Cps
