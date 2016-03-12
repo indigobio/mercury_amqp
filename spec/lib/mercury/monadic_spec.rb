@@ -268,6 +268,7 @@ describe Mercury::Monadic do
         let(:m2) { Mercury::Monadic.open }
         and_then { m2.start_worker(worker, source, &msgs.method(:push)) }
         and_then { wait_until { msgs.size == 2 } }
+        and_then { m2.close }
       end
     end
   end

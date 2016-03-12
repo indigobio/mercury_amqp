@@ -25,12 +25,16 @@ class Mercury
                  username: 'guest',
                  password: 'guest',
                  parallelism: 1,
+                 on_error: nil,
                  &k)
-    AMQP.connect(host: host, port: port, vhost: vhost, username: username, password: password) do |amqp|
+    @on_error = on_error
+    AMQP.connect(host: host, port: port, vhost: vhost, username: username, password: password,
+                 on_tcp_connection_failure: server_down_error_handler) do |amqp|
       @amqp = amqp
       @channel = AMQP::Channel.new(amqp, prefetch: parallelism) do
         @channel.confirm_select
-        install_default_error_handler
+        install_channel_error_handler
+        install_lost_connection_error_handler
         k.call(self)
       end
     end
@@ -122,7 +126,7 @@ class Mercury
           k.call(false)
         else
           # failed for unknown reason
-          default_error_handler(ch, info)
+          handle_channel_error(ch, info)
         end
       end
       check.call(ch) do |result|
@@ -133,13 +137,32 @@ class Mercury
     end
   end
 
-  def install_default_error_handler
-    @channel.on_error(&method(:default_error_handler))
+  def server_down_error_handler
+    make_error_handler('Failed to establish connection to AMQP server. Exiting.')
   end
 
-  def default_error_handler(_ch, info)
+  def install_lost_connection_error_handler
+    @amqp.on_tcp_connection_loss(&make_error_handler('Lost connection to AMQP server. Exiting.'))
+  end
+
+  def install_channel_error_handler
+    @channel.on_error(&method(:handle_channel_error))
+  end
+
+  def handle_channel_error(_ch, info)
     @amqp.close do
-      raise "An error occurred: #{info.reply_code} - #{info.reply_text}"
+      make_error_handler("An error occurred: #{info.reply_code} - #{info.reply_text}").call
+    end
+  end
+
+  def make_error_handler(msg)
+    proc do
+      Logatron.error(msg)
+      if @on_error.respond_to?(:call)
+        @on_error.call(msg)
+      else
+        raise msg
+      end
     end
   end
 
