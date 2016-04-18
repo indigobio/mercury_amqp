@@ -78,8 +78,8 @@ describe Mercury::Monadic do
       end
       seql do
         and_then { m.start_worker('worker1', source1, handle_msg) }
-        and_then { m.publish(source1, {'id' => 1, 'sleep_seconds' => 0.01}) }
-        and_then { m.publish(source1, {'id' => 2, 'sleep_seconds' => 0.01}) }
+        and_then { m.publish(source1, {'id' => 1, 'sleep_seconds' => 0.1}) }
+        and_then { m.publish(source1, {'id' => 2, 'sleep_seconds' => 0.1}) }
         and_then { wait_until { events.size == 4 } }
         and_lift do
           expect(events).to eql ['received 1', 'received 2', 'finished 1', 'finished 2']
@@ -128,8 +128,8 @@ describe Mercury::Monadic do
       msgs = []
       seql do
         and_then { m.start_listener(source, &msgs.method(:push)) }
+        and_lift { EM.next_tick { Logatron.msg_id = 'fake_msg_id' } } # we want this to happen right after publishing but before getting the response
         and_then { m.publish(source, msg) }
-        and_lift { Logatron.msg_id = 'fake_msg_id' }
         and_then { wait_until { msgs.size == 1 } }
         and_lift do
           expect(msgs[0].headers['X-Ascent-Log-Id']).to eql real_msg_id
@@ -188,14 +188,21 @@ describe Mercury::Monadic do
     end
   end
 
+  def push_and_ack(array)
+    proc do |msg|
+      array.push(msg)
+      msg.ack
+    end
+  end
+
   itt 'workers can specify tag filters' do
     test_with_mercury do |m|
       seql do
         let(:m2) { Mercury::Monadic.open }
         work1 = []
         work2 = []
-        and_then { m.start_worker(worker, source, tag_filter: 'success', &push_and_ack(work1)) }
-        and_then { m2.start_worker(worker, source, tag_filter: 'failure', &push_and_ack(work2)) }
+        and_then { m.start_worker(worker, source, tag_filter: 'success', &work1.method(:push)) }
+        and_then { m2.start_worker(worker, source, tag_filter: 'failure', &work2.method(:push)) }
         and_then { m.publish(source, msg1, tag: 'success') }
         and_then { m.publish(source, msg2, tag: 'failure') }
         and_then { wait_until { work1.size == 1 && work2.size == 1 } }
@@ -205,13 +212,6 @@ describe Mercury::Monadic do
         end
         and_then { m2.close }
       end
-    end
-  end
-
-  def push_and_ack(array)
-    proc do |msg|
-      array.push(msg)
-      msg.ack
     end
   end
 

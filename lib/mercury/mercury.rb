@@ -31,11 +31,13 @@ class Mercury
     AMQP.connect(host: host, port: port, vhost: vhost, username: username, password: password,
                  on_tcp_connection_failure: server_down_error_handler) do |amqp|
       @amqp = amqp
+      @confirm_handlers = {}
       @channel = AMQP::Channel.new(amqp, prefetch: parallelism) do
-        @channel.confirm_select
         install_channel_error_handler
         install_lost_connection_error_handler
-        k.call(self)
+        enable_publisher_confirms do
+          k.call(self)
+        end
       end
     end
   end
@@ -44,11 +46,11 @@ class Mercury
   def publish(source_name, msg, tag: '', headers: {}, &k)
     # The amqp gem caches exchange objects, so it's fine to
     # redeclare the exchange every time we publish.
-    # TODO: wait for publish confirmations (@channel.on_ack)
     with_source(source_name) do |exchange|
-      exchange.publish(write(msg), **Mercury.publish_opts(tag, headers)) do
-        k.call
-      end
+      payload = write(msg)
+      pub_opts = Mercury.publish_opts(tag, headers)
+      tag = expect_publisher_confirm(k)
+      exchange.publish(payload, **pub_opts)
     end
   end
 
@@ -111,6 +113,54 @@ class Mercury
   end
 
   private
+
+  # In AMQP, queue consumers ack requests after handling them. Unacked messages
+  # are automatically returned to the queue, guaranteeing they are eventually handled.
+  # Services often ack one request while publishing related messages. Ideally, these
+  # operations would be transactional. If the ack succeeds but the publish does not,
+  # the line of processing is abandoned, resulting in processing getting "stuck".
+  # The best we can do in AMQP is to use "publisher confirms" to confirm that the publish
+  # succeeded before acking the originating request. Since the ack can still fail in this
+  # scenario, the system should employ idempotent design, which makes request redelivery
+  # harmless.
+  #
+  # see https://www.rabbitmq.com/confirms.html
+  # see http://rubyamqp.info/articles/durability/
+  def enable_publisher_confirms(&k)
+
+    @channel.confirm_select do
+      @last_published_delivery_tag = 0
+      @channel.on_ack do |basic_ack|
+        tag = basic_ack.delivery_tag
+        if @confirm_handlers.keys.exclude?(tag)
+          raise "Got an unexpected publish confirmation ACK for delivery-tag: #{tag}. Was expecting one of: #{@confirm_handlers.keys.inspect}"
+        end
+        dispatch_publisher_confirm(basic_ack)
+      end
+      @channel.on_nack do |basic_nack|
+        raise "Delivery failed for message with delivery-tag: #{basic_nack.delivery_tag}"
+      end
+      k.call
+    end
+  end
+
+  def expect_publisher_confirm(k)
+    expected_delivery_tag = (@last_published_delivery_tag += 1)
+    @confirm_handlers[expected_delivery_tag] = k
+    expected_delivery_tag
+  end
+
+  def dispatch_publisher_confirm(basic_ack)
+    confirmed_tags =
+      if basic_ack.multiple
+        @confirm_handlers.keys.select { |tag| tag <= basic_ack.delivery_tag }.sort # sort just to be deterministic
+      else
+        [basic_ack.delivery_tag]
+      end
+    confirmed_tags.each do |tag|
+      @confirm_handlers.delete(tag).call
+    end
+  end
 
   def make_received_message(payload, metadata, is_ackable)
     msg = ReceivedMessage.new(read(payload), metadata, is_ackable: is_ackable)
