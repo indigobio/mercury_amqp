@@ -127,7 +127,6 @@ class Mercury
   # see https://www.rabbitmq.com/confirms.html
   # see http://rubyamqp.info/articles/durability/
   def enable_publisher_confirms(&k)
-
     @channel.confirm_select do
       @last_published_delivery_tag = 0
       @channel.on_ack do |basic_ack|
@@ -207,11 +206,19 @@ class Mercury
 
   def make_error_handler(msg)
     proc do
-      Logatron.error(msg)
-      if @on_error.respond_to?(:call)
-        @on_error.call(msg)
-      else
-        raise msg
+      # If an error is already being raised, don't interfere with it.
+      # This is actually essential since some versions of EventMachine (notably 1.2.0.1)
+      # fail to clean up properly if an error is raised during the `ensure` clean up
+      # phase (in EventMachine::run), which zombifies subsequent reactors. (AMQP connection
+      # failure handlers are invoked from EventMachine's `ensure`.)
+      current_exception = $!
+      unless current_exception
+        Logatron.error(msg)
+        if @on_error.respond_to?(:call)
+          @on_error.call(msg)
+        else
+          raise msg
+        end
       end
     end
   end

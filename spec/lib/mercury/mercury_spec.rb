@@ -75,6 +75,22 @@ describe Mercury do
     end
   end
 
+  # Commented out until this gets fixed: https://github.com/eventmachine/eventmachine/issues/670
+  # it 'raises an error when a connection cannot be established' do
+  #   expect { em { Mercury.open(port: 31999) { done } } }.to raise_error /Failed to establish connection/
+  #   expect(EM.reactor_running?).to be false
+  # end
+
+  it 'raises an error when the connection breaks' do
+    expect { em { Mercury.open { done } } }.to raise_error /Lost connection/
+    expect(EM.reactor_running?).to be false   # make sure we're not triggering EventMachine cleanup bugs
+  end
+
+  it 'does not obscure exceptions thrown inside the reactor' do
+    expect { em { Mercury.open { raise 'oops' } } }.to raise_error 'oops'
+    expect(EM.reactor_running?).to be false   # make sure we're not triggering EventMachine cleanup bugs
+  end
+
   describe '#publish' do
     context 'docker assumptions' do
       after(:each) { start_rabbitmq_server }
