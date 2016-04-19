@@ -26,16 +26,20 @@ class Mercury
                  password: 'guest',
                  parallelism: 1,
                  on_error: nil,
+                 wait_for_publisher_confirms: true,
                  &k)
     @on_error = on_error
     AMQP.connect(host: host, port: port, vhost: vhost, username: username, password: password,
                  on_tcp_connection_failure: server_down_error_handler) do |amqp|
       @amqp = amqp
-      @confirm_handlers = {}
       @channel = AMQP::Channel.new(amqp, prefetch: parallelism) do
         install_channel_error_handler
         install_lost_connection_error_handler
-        enable_publisher_confirms do
+        if wait_for_publisher_confirms
+          enable_publisher_confirms do
+            k.call(self)
+          end
+        else
           k.call(self)
         end
       end
@@ -49,8 +53,12 @@ class Mercury
     with_source(source_name) do |exchange|
       payload = write(msg)
       pub_opts = Mercury.publish_opts(tag, headers)
-      tag = expect_publisher_confirm(k)
-      exchange.publish(payload, **pub_opts)
+      if publisher_confirms_enabled
+        expect_publisher_confirm(k)
+        exchange.publish(payload, **pub_opts)
+      else
+        exchange.publish(payload, **pub_opts, &k)
+      end
     end
   end
 
@@ -127,6 +135,7 @@ class Mercury
   # see https://www.rabbitmq.com/confirms.html
   # see http://rubyamqp.info/articles/durability/
   def enable_publisher_confirms(&k)
+    @confirm_handlers = {}
     @channel.confirm_select do
       @last_published_delivery_tag = 0
       @channel.on_ack do |basic_ack|
@@ -141,6 +150,10 @@ class Mercury
       end
       k.call
     end
+  end
+
+  def publisher_confirms_enabled
+    @confirm_handlers.is_a?(Hash)
   end
 
   def expect_publisher_confirm(k)

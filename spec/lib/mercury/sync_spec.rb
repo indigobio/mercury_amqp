@@ -7,17 +7,20 @@ describe Mercury::Sync do
   let!(:source) { 'test-exchange1' }
   let!(:queue) { 'test-queue1' }
   describe '::publish' do
-    it 'publishes synchronously' do
-      sent = {'a' => 1}
-      received = []
-      test_with_mercury do |m|
-        seql do
-          and_then { m.start_listener(source, received.method(:push)) }
-          and_lift { Mercury::Sync.publish(source, sent) }
-          and_then { wait_until { received.any? } }
-          and_lift do
-            expect(received.size).to eql 1
-            expect(received[0].content).to eql sent
+    %w{with without}.each do |w|
+      it "publishes synchronously (#{w} publisher confirms)" do
+        use_publisher_confirms = w == 'with'
+        sent = {'a' => 1}
+        received = []
+        test_with_mercury(wait_for_publisher_confirms: use_publisher_confirms) do |m|
+          seql do
+            and_then { m.start_listener(source, received.method(:push)) }
+            and_lift { Mercury::Sync.publish(source, sent) }
+            and_then { wait_until { received.any? } }
+            and_lift do
+              expect(received.size).to eql 1
+              expect(received[0].content).to eql sent
+            end
           end
         end
       end
@@ -25,9 +28,9 @@ describe Mercury::Sync do
   end
 
   # the block must return a Cps
-  def test_with_mercury(&block)
+  def test_with_mercury(**kws, &block)
     sources = [source]
     queues = [queue]
-    test_with_mercury_cps(sources, queues, &block)
+    test_with_mercury_cps(sources, queues, **kws, &block)
   end
 end
