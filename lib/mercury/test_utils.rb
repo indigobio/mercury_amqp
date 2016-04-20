@@ -6,9 +6,9 @@ class Mercury
   module TestUtils
     include Cps::Methods
 
-    def em
+    def em(timeout_seconds: 3)
       EM.run do
-        EM.add_timer(in_debug_mode? ? 999999 : 3) { raise 'EM spec timed out' }
+        EM.add_timer(in_debug_mode? ? 999999 : timeout_seconds) { raise 'EM spec timed out' }
         yield
       end
     end
