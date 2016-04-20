@@ -30,7 +30,7 @@ module MercuryFakeSpec
         before :each do
           real_open = Mercury.method(:open)
           allow(Mercury).to receive(:open) do |**kws, &k|
-            real_open.call(**kws.merge(wait_for_publisher_confirms: true), &k)
+            real_open.call(**kws.merge(wait_for_publisher_confirms: false), &k)
           end
         end
         it(name, &block)
