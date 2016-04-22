@@ -1,6 +1,6 @@
 class Mercury
   class ReceivedMessage
-    attr_reader :content, :metadata
+    attr_reader :content, :metadata, :action_taken
 
     def initialize(content, metadata, is_ackable: false)
       @content = content
@@ -17,18 +17,28 @@ class Mercury
     end
 
     def ack
-      @is_ackable or raise 'This message is not ackable'
+      performing_action(:ack)
       metadata.ack
     end
 
     def reject
-      @is_ackable or raise 'This message is not rejectable'
+      performing_action(:reject)
       metadata.reject(requeue: false)
     end
 
     def nack
-      @is_ackable or raise 'This message is not nackable'
+      performing_action(:nack)
       metadata.reject(requeue: true)
+    end
+
+    private
+
+    def performing_action(action)
+      @is_ackable or raise "This message is not #{action}able"
+      if @action_taken
+        raise "This message was already #{@action_taken}ed"
+      end
+      @action_taken = action
     end
   end
 end

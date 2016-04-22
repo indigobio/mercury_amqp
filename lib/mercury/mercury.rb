@@ -8,8 +8,7 @@ class Mercury
   attr_reader :amqp, :channel, :logger
 
   def self.open(logger: Logatron, **kws, &k)
-    @logger = logger
-    new(**kws, &k)
+    new(logger: logger, **kws, &k)
     nil
   end
 
@@ -27,7 +26,9 @@ class Mercury
                  parallelism: 1,
                  on_error: nil,
                  wait_for_publisher_confirms: true,
+                 logger: logger,
                  &k)
+    @logger = logger
     @on_error = on_error
     AMQP.connect(host: host, port: port, vhost: vhost, username: username, password: password,
                  on_tcp_connection_failure: server_down_error_handler) do |amqp|
@@ -226,7 +227,7 @@ class Mercury
       # failure handlers are invoked from EventMachine's `ensure`.)
       current_exception = $!
       unless current_exception
-        Logatron.error(msg)
+        @logger.error(msg)
         if @on_error.respond_to?(:call)
           @on_error.call(msg)
         else

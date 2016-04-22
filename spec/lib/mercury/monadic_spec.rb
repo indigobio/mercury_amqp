@@ -274,19 +274,14 @@ describe Mercury::Monadic do
   end
 
   it 'raises when an error occurs' do
-    # verify it registers a handler
-    expect_any_instance_of(AMQP::Channel).to receive(:on_error) {|&b| @handler = b}
-
-    # verify the handler raises an error
     expect do
       em do
-        Mercury.open do
-          ch = double
-          info = double(reply_code: 'code', reply_text: 'text')
-          @handler.call(ch, info)
+        Mercury.open do |m|
+          ch = m.instance_variable_get(:@channel)
+          ch.acknowledge(42) # force a channel error
         end
       end
-    end.to raise_error 'An error occurred: code - text'
+    end.to raise_error 'An error occurred: 406 - PRECONDITION_FAILED - unknown delivery tag 42'
   end
 
   describe '#delete_source' do
