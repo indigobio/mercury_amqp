@@ -293,13 +293,16 @@ class Mercury
     end
   end
 
-  def defunct
-    @amqp.nil?
+  def guard_public(k, initializing: false)
+    Mercury.guard_public(@amqp.nil?, k, initializing: initializing)
   end
 
-  def guard_public(k, initializing: false)
-    if defunct && !initializing
+  def self.guard_public(is_closed, k, initializing: false)
+    if is_closed && !initializing
       raise 'This mercury instance is defunct. Either it was purposely closed or an error occurred.'
+    end
+    unless k
+      raise 'A continuation block is required but none was provided.'
     end
   end
 

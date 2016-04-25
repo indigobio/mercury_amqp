@@ -30,7 +30,7 @@ class Mercury
     end
 
     def publish(source_name, msg, tag: '', headers: {}, &k)
-      assert_not_closed
+      guard_public(k)
       queues.values.select{|q| q.binds?(source_name, tag)}.each{|q| q.enqueue(roundtrip(msg), tag, headers)}
       ret(k)
     end
@@ -44,7 +44,7 @@ class Mercury
     end
 
     def start_worker_or_listener(source_name, handler, tag_filter, worker_group=nil, &k)
-      assert_not_closed
+      guard_public(k)
       q = ensure_queue(source_name, tag_filter, !!worker_group, worker_group)
       ret(k) # it's important we show the "start" operation finishing before delivery starts (in add_subscriber)
       q.add_subscriber(Subscriber.new(handler, @parallelism))
@@ -52,23 +52,25 @@ class Mercury
     private :start_worker_or_listener
 
     def delete_source(source_name, &k)
-      assert_not_closed
+      guard_public(k)
       queues.delete_if{|_k, v| v.source == source_name}
       ret(k)
     end
 
     def delete_work_queue(worker_group, &k)
-      assert_not_closed
+      guard_public(k)
       queues.delete_if{|_k, v| v.worker == worker_group}
       ret(k)
     end
 
     def source_exists?(source, &k)
+      guard_public(k)
       built_in_sources = %w(direct topic fanout headers match rabbitmq.log rabbitmq.trace).map{|x| "amq.#{x}"}
       ret(k, (queues.values.map(&:source) + built_in_sources).include?(source))
     end
 
     def queue_exists?(worker, &k)
+      guard_public(k)
       ret(k, queues.values.map(&:worker).include?(worker))
     end
 
@@ -98,8 +100,8 @@ class Mercury
       [source, tag_filter, worker].join('^')
     end
 
-    def assert_not_closed
-      raise 'This mercury instance is defunct. Either it was purposely closed or an error occurred.' if @closed
+    def guard_public(k, initializing: false)
+      Mercury.guard_public(@closed, k, initializing: initializing)
     end
   end
 end
