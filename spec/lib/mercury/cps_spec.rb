@@ -12,6 +12,9 @@ describe Cps do
     it 'CPS-transforms a non-CPS proc' do
       expect(Cps.lift{rand}.run).to be_a Numeric
     end
+    it 'raises an error if the block returns a Cps object' do
+      expect{lift{lift{'cps'}}.run}.to raise_error /returned a Cps/
+    end
   end
 
   describe '::run' do
@@ -30,11 +33,17 @@ describe Cps do
     it 'composes two Cps instances' do
       expect(lift{a}.and_then{|x| to_string(x)}.run).to eql a.to_s
     end
+    it 'raises an error if the block does not return a Cps object' do
+      expect{lift{a}.and_then{'not-cps'}.run}.to raise_error /did not return a Cps/
+    end
   end
 
   describe '#and_lift' do
     it 'composes a Cps instance with a normal proc' do
       expect(lift{a}.and_lift{|x| x.to_s}.run).to eql a.to_s
+    end
+    it 'raises an error if the block returns a Cps object' do
+      expect{lift{a}.and_lift{lift{'cps'}}.run}.to raise_error /returned a Cps/
     end
   end
 
