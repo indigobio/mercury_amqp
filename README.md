@@ -83,3 +83,23 @@ seq do
   and_lift { done                     }
 end
 ```
+
+Design Decisions
+----------------
+
+#### The only way to get a mercury instance is through the `Mercury::open` continuation
+
+It would be possible for `Mercury::open` to immediately return a mercury instance. Unfortunately,
+this requires making the instance stateful: it is either connected or disconnected. This complicates
+the API and it complicates the implementation. Every public method must now guard against being called
+in an invalid state; these guards must be tested. If a future maintainer adds a public method, they
+have to remember to add a guard; tests will not detect the error if they forget. It is less complicated
+to leave it the way it is.
+
+#### Continuation blocks are required
+
+It would be possible to make continuation blocks optional. The problem is that this allows the user
+to make the mistake of treating the API as synchronous and only discover their error when tests fail,
+probably intermittently. An empty block can be passed, but at least it indicates that the continuation
+is being intentionally ignored.
+
