@@ -99,7 +99,7 @@ class Mercury
     end
 
     def assert_not_closed
-      raise 'connection is closed' if @closed
+      raise 'This mercury instance is defunct. Either it was purposely closed or an error occurred.' if @closed
     end
   end
 end

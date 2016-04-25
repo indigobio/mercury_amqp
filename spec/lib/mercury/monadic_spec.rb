@@ -273,17 +273,6 @@ describe Mercury::Monadic do
     end
   end
 
-  it 'raises when an error occurs' do
-    expect do
-      em do
-        Mercury.open do |m|
-          ch = m.instance_variable_get(:@channel)
-          ch.acknowledge(42) # force a channel error
-        end
-      end
-    end.to raise_error 'An error occurred: 406 - PRECONDITION_FAILED - unknown delivery tag 42'
-  end
-
   describe '#delete_source' do
     itt 'deletes the source if it exists' do
       test_with_mercury do |m|

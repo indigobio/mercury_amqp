@@ -13,8 +13,13 @@ class Mercury
   end
 
   def close(&k)
-    @amqp.close do
-      k.call
+    if @amqp
+      @amqp.close do
+        @amqp = nil
+        k.call
+      end
+    else
+      EM.next_tick(&k)
     end
   end
 
@@ -28,6 +33,7 @@ class Mercury
                  wait_for_publisher_confirms: true,
                  logger: logger,
                  &k)
+    guard_public(k, initializing: true)
     @logger = logger
     @on_error = on_error
     AMQP.connect(host: host, port: port, vhost: vhost, username: username, password: password,
@@ -49,6 +55,7 @@ class Mercury
   private_class_method :new
 
   def publish(source_name, msg, tag: '', headers: {}, &k)
+    guard_public(k)
     # The amqp gem caches exchange objects, so it's fine to
     # redeclare the exchange every time we publish.
     with_source(source_name) do |exchange|
@@ -68,6 +75,7 @@ class Mercury
   end
 
   def start_listener(source_name, handler, tag_filter: '#', &k)
+    guard_public(k)
     with_source(source_name) do |exchange|
       with_listener_queue(exchange, tag_filter) do |queue|
         queue.subscribe(ack: false) do |metadata, payload|
@@ -79,6 +87,7 @@ class Mercury
   end
 
   def start_worker(worker_group, source_name, handler, tag_filter: '#', &k)
+    guard_public(k)
     with_source(source_name) do |exchange|
       with_work_queue(worker_group, exchange, tag_filter) do |queue|
         queue.subscribe(ack: true) do |metadata, payload|
@@ -90,6 +99,7 @@ class Mercury
   end
 
   def delete_source(source_name, &k)
+    guard_public(k)
     with_source(source_name) do |exchange|
       exchange.delete do
         k.call
@@ -98,6 +108,7 @@ class Mercury
   end
 
   def delete_work_queue(worker_group, &k)
+    guard_public(k)
     @channel.queue(worker_group, work_queue_opts) do |queue|
       queue.delete do
         k.call
@@ -106,6 +117,7 @@ class Mercury
   end
 
   def source_exists?(source_name, &k)
+    guard_public(k)
     existence_check(k) do |ch, &ret|
       with_source_no_cache(ch, source_name, passive: true) do
         ret.call(true)
@@ -114,6 +126,7 @@ class Mercury
   end
 
   def queue_exists?(queue_name, &k)
+    guard_public(k)
     existence_check(k) do |ch, &ret|
       ch.queue(queue_name, passive: true) do
         ret.call(true)
@@ -213,9 +226,7 @@ class Mercury
   end
 
   def handle_channel_error(_ch, info)
-    @amqp.close do
-      make_error_handler("An error occurred: #{info.reply_code} - #{info.reply_text}").call
-    end
+    make_error_handler("An error occurred: #{info.reply_code} - #{info.reply_text}").call
   end
 
   def make_error_handler(msg)
@@ -228,10 +239,12 @@ class Mercury
       current_exception = $!
       unless current_exception
         @logger.error(msg)
-        if @on_error.respond_to?(:call)
-          @on_error.call(msg)
-        else
-          raise msg
+        close do
+          if @on_error.respond_to?(:call)
+            @on_error.call(msg)
+          else
+            raise msg
+          end
         end
       end
     end
@@ -277,6 +290,16 @@ class Mercury
     queue = @channel.queue(queue_name, opts)
     queue.bind(exchange, routing_key: tag_filter) do
       k.call(queue)
+    end
+  end
+
+  def defunct
+    @amqp.nil?
+  end
+
+  def guard_public(k, initializing: false)
+    if defunct && !initializing
+      raise 'This mercury instance is defunct. Either it was purposely closed or an error occurred.'
     end
   end
 
