@@ -37,7 +37,7 @@ class Mercury
       Cps.new do |*args, &k|
         self.run(*args) do |*args2|
           next_cps = pm.call(*args2)
-          next_cps.is_a?(Cps) or raise "'and_then' block did not return a Cps. Did you want 'and_lift'? at #{pm.source_location}"
+          next_cps.is_a?(Cps) or raise "'and_then' block did not return a Cps object. Did you want 'and_lift'? at #{pm.source_location}"
           next_cps.run(&k)
         end
       end
@@ -52,7 +52,14 @@ class Mercury
 
     # Returns a Cps for a non-CPS proc.
     def self.lift(&p)
-      new { |*args, &k| k.call(p.call(*args)) }
+      new do |*args, &k|
+        value = p.call(*args)
+        if value.is_a?(Cps)
+          # This is technically valid, but 99% of the time it indicates a programming error.
+          raise "'lift' block returned a Cps object. Did you want 'and_then'? at #{p.source_location}"
+        end
+        k.call(value)
+      end
     end
 
     # The identity function as a Cps.
