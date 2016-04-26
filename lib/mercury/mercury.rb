@@ -39,9 +39,10 @@ class Mercury
     AMQP.connect(host: host, port: port, vhost: vhost, username: username, password: password,
                  on_tcp_connection_failure: server_down_error_handler) do |amqp|
       @amqp = amqp
-      @channel = AMQP::Channel.new(amqp, prefetch: parallelism) do
+      install_lost_connection_error_handler
+      AMQP::Channel.new(amqp, prefetch: parallelism) do |channel|
+        @channel = channel
         install_channel_error_handler
-        install_lost_connection_error_handler
         if wait_for_publisher_confirms
           enable_publisher_confirms do
             k.call(self)
