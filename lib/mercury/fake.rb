@@ -15,9 +15,21 @@ require 'mercury/fake/subscriber'
 # broken sockets, etc.
 class Mercury
   class Fake
-    def initialize(domain=:default, parallelism: 1)
+    def self.install(rspec_context, domain=:default)
+      rspec_context.instance_exec do
+        allow(Mercury).to receive(:open) do |**kws, &k|
+          EM.next_tick { k.call(Mercury::Fake.new(domain, **kws)) } # EM.next_tick is required to emulate the real Mercury.open
+        end
+      end
+    end
+
+    def initialize(domain=:default, **kws)
       @domain = Fake.domains[domain]
-      @parallelism = parallelism
+      @parallelism = kws.fetch(:parallelism, 1)
+      ignored_keys = kws.keys - [:parallelism]
+      if ignored_keys.any?
+        $stderr.puts "Warning: Mercury::Fake::new is ignoring keyword arguments: #{ignored_keys.join(', ')}"
+      end
     end
 
     def self.domains

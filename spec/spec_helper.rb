@@ -36,11 +36,7 @@ module MercuryFakeSpec
         it(name, &block)
       end
       context 'with Mercury::Fake' do
-        before :each do
-          allow(Mercury).to receive(:open) do |parallelism:1, &k|
-            EM.next_tick { k.call(Mercury::Fake.new(parallelism: parallelism)) }
-          end
-        end
+        before(:each) { Mercury::Fake.install(self) }
         it(name, &block)
       end
     end
