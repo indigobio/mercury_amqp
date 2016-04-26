@@ -1,0 +1,17 @@
+digraph G {
+        rankdir=LR
+        p1 [label="publisher", shape=rect]
+        p2 [label="publisher", shape=rect]
+        p3 [label="publisher", shape=rect]
+        s [label="source", shape=circle]
+        wq [label="{|||||}", shape=record, fixedsize=true, height=0.3, width=1.5]
+        w1 [label="worker A", shape=rect]
+        w2 [label="worker A", shape=rect]
+        w3 [label="worker A", shape=rect]
+
+        p1 -> s [tailport=e]
+        p2 -> s [tailport=e]
+        p3 -> s [tailport=e]
+        s -> wq [headport=w]
+        wq -> {w1, w2, w3} [tailport=e, headport=w]
+}

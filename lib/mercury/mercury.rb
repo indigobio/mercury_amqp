@@ -31,7 +31,7 @@ class Mercury
                  parallelism: 1,
                  on_error: nil,
                  wait_for_publisher_confirms: true,
-                 logger: logger,
+                 logger:,
                  &k)
     guard_public(k, initializing: true)
     @logger = logger
