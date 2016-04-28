@@ -217,7 +217,8 @@ Much like `Proc.new`, `Cps.new` merely captures some operation in an
 object but does not do any actual work. The key difference is that
 `Cps` captures a "continuation-passing style" ("CPS") operation. That is,
 instead of returning a value to the caller, the operation takes its
-continuation as an additional argument `k`. `k` is simply a `Proc`.
+continuation as an additional argument `k`. (The actual name doesn't matter,
+of course, but `k` is traditional.) `k` is simply a `Proc`.
 You can loosely think of it as the "return _`Proc`_", as opposed to
 the usual return _statement_.
 
