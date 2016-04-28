@@ -263,14 +263,14 @@ end
 value = 3
 ```
 
-`Cps#and_then`'s block takes the result of the previous operation and
+`Cps#and_then`'s block accepts the result of the previous operation and
 returns the `Cps` object representing the next operation to perform.
 
 As it turns out, the best way to factor an operation is as a
 method that
 
 - accepts the operation arguments, and
-- return a `Cps` object
+- returns a `Cps` object
 
 as seen above.
 
