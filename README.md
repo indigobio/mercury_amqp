@@ -200,6 +200,175 @@ seql do
 end
 ```
 
+Monadic Interface
+-----------------
+
+The _monad_ is a versatile design pattern. There is plenty of
+literature online, but for now all you need to know is that mercury
+uses monad principles to chain together asynchronous operations. It
+all starts with a `Cps` object.
+
+```
+2.2.2 :005 > add1 = Cps.new { |n, &k| k.call(n+1) }
+ => #<Mercury::Cps:...>
+```
+
+Much like `Proc.new`, `Cps.new` merely captures some operation in an
+object but does not do any actual work. The key difference is that
+`Cps` captures a "continuation-passing style" ("CPS") operation. That is,
+instead of returning a value to the caller, the operation takes its
+continuation as an additional argument `k`. `k` is simply a `Proc`.
+You can loosely think of it as the "return _`Proc`_", as opposed to
+the usual return _statement_.
+
+To invoke a `Proc` we call `Proc#call`. To invoke a `Cps`, we call
+`Cps#run`, passing the normal arguments as well as the continuation
+(the block).
+
+```
+2.2.2 :006 > add1.run(2) { |result| puts "result = #{result}" }
+result = 3
+```
+
+As you've seen already, asynchronous APIs are closely tied to CPS. In
+the case of mercury, an operation may involve a conversation with the
+server. CPS allows our code to go off and do other things -- namely,
+handle other independent requests -- but also be notified when the
+operation finally completes.
+
+### Combining operations
+
+`Cps` provides a means of combining operations into a larger
+operation: `Cps#and_then`.
+
+```ruby
+def add1(n)
+  Cps.new { |&k| k.call(n+1) }
+end
+
+def print_value(n)
+  Cps.new do |&k|
+    puts "value = #{n}"
+    k.call
+  end
+end
+
+def add1_and_print(n)
+  add1(n).and_then { |v| print_value(v) }
+end
+```
+```
+2.2.2 :028 > add1_and_print(2).run
+value = 3
+```
+
+`Cps#and_then`'s block takes the result of the previous operation and
+returns the `Cps` object representing the next operation to perform.
+
+As it turns out, the best way to factor an operation is as a
+method that
+
+- accepts the operation arguments, and
+- return a `Cps` object
+
+as seen above.
+
+### Sequences
+
+As you can imagine, long `and_then` chains can get syntactially messy.
+This is where `seq` comes in.
+
+```
+def add1_and_print(n)
+  seq do |th|
+    th.en {     add1(n)        }
+    th.en { |v| print_value(v) }
+  end
+end
+```
+
+This is still not ideal; it would be nice to have a way to bind `v` to
+the result of `add1(n)` rather than introducing a parameter on the
+line below. `seql` contains some magic that allows us to do
+exactly this. (It also eliminates the weird `th.en`.)
+
+```ruby
+def add1_and_print(n)
+  seql do
+    let(:v)  { add1(n)        }
+    and_then { print_value(v) }
+  end
+end
+```
+
+Another benefit of `seql` and `let` is that it makes `v` visible to
+_all_ subsequent `and_then` blocks, not just the immediately following
+one.
+
+But what if we want to introduce a non-CPS operation into our
+sequence?
+
+```ruby
+def add1_and_print(n)
+  seql do
+    let(:v)  { add1(n)        }
+    and_then { puts 'added!'  }
+    and_then { print_value(v) }
+  end
+end
+```
+```
+2.2.2 :061 > add1_and_print(2).run
+added!
+RuntimeError: 'and_then' block did not return a Cps object.
+```
+
+This fails because it violates the requirement that the `and_then`
+block return a `Cps` object, and `puts` does not. `lift` returns a
+`Cps` object for a block of direct-style code.
+
+```ruby
+def add1_and_print(n)
+  seql do
+    let(:v)  { add1(n)                }
+    and_then { lift { puts 'added!' } }
+    and_then { print_value(v)         }
+  end
+end
+```
+```
+2.2.2 :053 > add1_and_print(2).run
+added!
+value = 3
+```
+
+Finally, a little clean up:
+
+```ruby
+def add1_and_print(n)
+  seql do
+    let(:v)  { add1(n)        }
+    and_lift { puts 'added!'  }
+    and_then { print_value(v) }
+  end
+end
+```
+
+### `Mercury::Monadic`
+
+`Mercury::Monadic` simply wraps `Mercury` so that the methods return
+`Cps` objects rather than accepting an explicit continuation.
+
+```ruby
+seql do
+  let(:m)  { Mercury::Monadic.open    }
+  and_then { m.start_listener(source) }
+  ...
+end
+```
+
+It is particularly useful when writing tests.
+
 Design Decisions
 ----------------
 
