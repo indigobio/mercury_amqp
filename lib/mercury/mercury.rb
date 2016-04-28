@@ -75,7 +75,7 @@ class Mercury
     { routing_key: tag, persistent: true, headers: Logatron.http_headers.merge(headers) }
   end
 
-  def start_listener(source_name, handler, tag_filter: '#', &k)
+  def start_listener(source_name, handler, tag_filter: nil, &k)
     guard_public(k)
     with_source(source_name) do |exchange|
       with_listener_queue(exchange, tag_filter) do |queue|
@@ -87,7 +87,7 @@ class Mercury
     end
   end
 
-  def start_worker(worker_group, source_name, handler, tag_filter: '#', &k)
+  def start_worker(worker_group, source_name, handler, tag_filter: nil, &k)
     guard_public(k)
     with_source(source_name) do |exchange|
       with_work_queue(worker_group, exchange, tag_filter) do |queue|
@@ -288,6 +288,7 @@ class Mercury
   end
 
   def bind_queue(exchange, queue_name, tag_filter, opts, &k)
+    tag_filter ||= '#'
     queue = @channel.queue(queue_name, opts)
     queue.bind(exchange, routing_key: tag_filter) do
       k.call(queue)

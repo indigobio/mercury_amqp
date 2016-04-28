@@ -47,16 +47,17 @@ class Mercury
       ret(k)
     end
 
-    def start_listener(source_name, handler, tag_filter: '#', &k)
+    def start_listener(source_name, handler, tag_filter: nil, &k)
       start_worker_or_listener(source_name, handler, tag_filter, &k)
     end
 
-    def start_worker(worker_group, source_name, handler, tag_filter: '#', &k)
+    def start_worker(worker_group, source_name, handler, tag_filter: nil, &k)
       start_worker_or_listener(source_name, handler, tag_filter, worker_group, &k)
     end
 
     def start_worker_or_listener(source_name, handler, tag_filter, worker_group=nil, &k)
       guard_public(k)
+      tag_filter ||= '#'
       q = ensure_queue(source_name, tag_filter, !!worker_group, worker_group)
       ret(k) # it's important we show the "start" operation finishing before delivery starts (in add_subscriber)
       q.add_subscriber(Subscriber.new(handler, @parallelism))
