@@ -29,7 +29,7 @@ describe Mercury do
       em do
         Mercury.open do |m|
           m.close do
-            expect { m.publish(queue, {'a' => 1}) }.to raise_error /connection is closed/
+            expect { m.publish(queue, {'a' => 1}) }.to raise_error /closed/
             done
           end
         end
@@ -132,6 +132,34 @@ describe Mercury do
       end
       log << "publish #{name}"
     end
+  end
+
+  it 'raises when an error occurs' do
+    expect do
+      em do
+        Mercury.open do |m|
+          ch = m.instance_variable_get(:@channel)
+          ch.acknowledge(42) # force a channel error
+        end
+      end
+    end.to raise_error 'An error occurred: 406 - PRECONDITION_FAILED - unknown delivery tag 42'
+  end
+
+  it 'raises a helpful exception if used after a custom error handler suppresses an error' do
+    expect do
+      em do
+        handler = proc do
+          EM.next_tick do
+            @mercury.publish(source, 'hello')
+          end
+        end
+        Mercury.open(on_error: handler) do |m|
+          @mercury = m
+          ch = m.instance_variable_get(:@channel)
+          ch.acknowledge(42) # force a channel error
+        end
+      end
+    end.to raise_error /defunct/
   end
 
   def start_rabbitmq_server

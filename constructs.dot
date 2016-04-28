@@ -1,0 +1,24 @@
+digraph G {
+        rankdir=LR
+        p1 [label="publisher", shape=rect]
+        p2 [label="publisher", shape=rect]
+        s [label="source", shape=circle]
+        l1q [label="{|||||}", shape=record, fixedsize=true, height=0.3, width=1.5]
+        l2q [label="{|||||}", shape=record, fixedsize=true, height=0.3, width=1.5]
+        w1q [label="{|||||}", shape=record, fixedsize=true, height=0.3, width=1.5]
+        w2q [label="{|||||}", shape=record, fixedsize=true, height=0.3, width=1.5]
+        l1 [label="listener", shape=rect]
+        l2 [label="listener", shape=rect]
+        w1a1 [label="worker A", shape=rect]
+        w1a2 [label="worker A", shape=rect]
+        w2b [label="worker B", shape=rect]
+
+        p1 -> s [tailport=e]
+        p2 -> s [tailport=e, label="tag: foo.success", fontsize=8, fontname="mono"]
+        s -> {l1q, l2q, w1q} [headport=w]
+        s -> w2q [headport=w, label="tag_filter: *.success", fontsize=8, fontname="mono"]
+        l1q -> l1 [tailport=e, headport=w]
+        l2q -> l2 [tailport=e, headport=w]
+        w1q -> {w1a1, w1a2} [tailport=e, headport=w]
+        w2q -> w2b [tailport=e, headport=w]
+}

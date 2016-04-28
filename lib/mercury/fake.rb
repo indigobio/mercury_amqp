@@ -15,9 +15,21 @@ require 'mercury/fake/subscriber'
 # broken sockets, etc.
 class Mercury
   class Fake
-    def initialize(domain=:default, parallelism: 1)
+    def self.install(rspec_context, domain=:default)
+      rspec_context.instance_exec do
+        allow(Mercury).to receive(:open) do |**kws, &k|
+          EM.next_tick { k.call(Mercury::Fake.new(domain, **kws)) } # EM.next_tick is required to emulate the real Mercury.open
+        end
+      end
+    end
+
+    def initialize(domain=:default, **kws)
       @domain = Fake.domains[domain]
-      @parallelism = parallelism
+      @parallelism = kws.fetch(:parallelism, 1)
+      ignored_keys = kws.keys - [:parallelism]
+      if ignored_keys.any?
+        $stderr.puts "Warning: Mercury::Fake::new is ignoring keyword arguments: #{ignored_keys.join(', ')}"
+      end
     end
 
     def self.domains
@@ -30,21 +42,22 @@ class Mercury
     end
 
     def publish(source_name, msg, tag: '', headers: {}, &k)
-      assert_not_closed
+      guard_public(k)
       queues.values.select{|q| q.binds?(source_name, tag)}.each{|q| q.enqueue(roundtrip(msg), tag, headers)}
       ret(k)
     end
 
-    def start_listener(source_name, handler, tag_filter: '#', &k)
+    def start_listener(source_name, handler, tag_filter: nil, &k)
       start_worker_or_listener(source_name, handler, tag_filter, &k)
     end
 
-    def start_worker(worker_group, source_name, handler, tag_filter: '#', &k)
+    def start_worker(worker_group, source_name, handler, tag_filter: nil, &k)
       start_worker_or_listener(source_name, handler, tag_filter, worker_group, &k)
     end
 
     def start_worker_or_listener(source_name, handler, tag_filter, worker_group=nil, &k)
-      assert_not_closed
+      guard_public(k)
+      tag_filter ||= '#'
       q = ensure_queue(source_name, tag_filter, !!worker_group, worker_group)
       ret(k) # it's important we show the "start" operation finishing before delivery starts (in add_subscriber)
       q.add_subscriber(Subscriber.new(handler, @parallelism))
@@ -52,23 +65,25 @@ class Mercury
     private :start_worker_or_listener
 
     def delete_source(source_name, &k)
-      assert_not_closed
+      guard_public(k)
       queues.delete_if{|_k, v| v.source == source_name}
       ret(k)
     end
 
     def delete_work_queue(worker_group, &k)
-      assert_not_closed
+      guard_public(k)
       queues.delete_if{|_k, v| v.worker == worker_group}
       ret(k)
     end
 
     def source_exists?(source, &k)
+      guard_public(k)
       built_in_sources = %w(direct topic fanout headers match rabbitmq.log rabbitmq.trace).map{|x| "amq.#{x}"}
       ret(k, (queues.values.map(&:source) + built_in_sources).include?(source))
     end
 
     def queue_exists?(worker, &k)
+      guard_public(k)
       ret(k, queues.values.map(&:worker).include?(worker))
     end
 
@@ -98,8 +113,8 @@ class Mercury
       [source, tag_filter, worker].join('^')
     end
 
-    def assert_not_closed
-      raise 'connection is closed' if @closed
+    def guard_public(k, initializing: false)
+      Mercury.guard_public(@closed, k, initializing: initializing)
     end
   end
 end

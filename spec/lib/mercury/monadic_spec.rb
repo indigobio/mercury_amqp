@@ -145,16 +145,24 @@ describe Mercury::Monadic do
       failures = []
       bars = []
       everything = []
+      everything2 = []
+      everything3 = []
+      all_msgs_received = proc do
+        successes.size == 2 && failures.size == 2 && bars.size == 2 &&
+          everything.size == 4 && everything2.size == 4 && everything3.size == 4
+      end
       seql do
         and_then { m.start_listener(source, tag_filter: '*.success', &successes.method(:push)) }
         and_then { m.start_listener(source, tag_filter: '*.failure', &failures.method(:push)) }
         and_then { m.start_listener(source, tag_filter: 'bar.*', &bars.method(:push)) }
         and_then { m.start_listener(source, tag_filter: '#', &everything.method(:push)) }
+        and_then { m.start_listener(source, tag_filter: nil, &everything2.method(:push)) }
+        and_then { m.start_worker(worker, source, tag_filter: nil) { |msg| everything3.push(msg); msg.ack } }
         and_then { m.publish(source, msg1, tag: 'foo.success') }
         and_then { m.publish(source, msg2, tag: 'foo.failure') }
         and_then { m.publish(source, msg3, tag: 'bar.success') }
         and_then { m.publish(source, msg4, tag: 'bar.failure') }
-        and_then { wait_until { successes.size == 2 && failures.size == 2 && bars.size == 2 && everything.size == 4 } }
+        and_then { wait_until(&all_msgs_received) }
         and_lift do
           expect(successes[0].content).to eql(msg1)
           expect(successes[1].content).to eql(msg3)
@@ -166,6 +174,8 @@ describe Mercury::Monadic do
           expect(everything[1].content).to eql(msg2)
           expect(everything[2].content).to eql(msg3)
           expect(everything[3].content).to eql(msg4)
+          expect(everything2.map(&:content)).to eql(everything.map(&:content))
+          expect(everything3.map(&:content)).to eql(everything.map(&:content))
         end
       end
     end
@@ -271,17 +281,6 @@ describe Mercury::Monadic do
         and_then { m2.close }
       end
     end
-  end
-
-  it 'raises when an error occurs' do
-    expect do
-      em do
-        Mercury.open do |m|
-          ch = m.instance_variable_get(:@channel)
-          ch.acknowledge(42) # force a channel error
-        end
-      end
-    end.to raise_error 'An error occurred: 406 - PRECONDITION_FAILED - unknown delivery tag 42'
   end
 
   describe '#delete_source' do
