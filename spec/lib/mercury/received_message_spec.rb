@@ -56,11 +56,11 @@ describe Mercury::ReceivedMessage do
   end
 
   def make_actionable
-    Mercury::ReceivedMessage.new('hello', make_metadata, is_ackable: true)
+    Mercury::ReceivedMessage.new('hello', make_metadata, work_queue_name: 'foo')
   end
 
   def make_non_actionable
-    Mercury::ReceivedMessage.new('hello', make_metadata, is_ackable: false)
+    Mercury::ReceivedMessage.new('hello', make_metadata, work_queue_name: nil)
   end
 
   def make_metadata

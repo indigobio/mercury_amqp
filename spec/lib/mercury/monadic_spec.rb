@@ -121,6 +121,34 @@ describe Mercury::Monadic do
     end
   end
 
+  itt 'republishes' do
+    test_with_mercury do |m|
+      msgs = []
+      seql do
+        and_then { m.start_worker(worker, source, &msgs.method(:push)) }
+        and_then { m.publish(source, msg, tag: 'foo', headers: {bar: 123}) }
+        and_then { wait_until { msgs.size == 1 } }
+        and_lift do
+          expect(msgs.last.tag).to eql 'foo'
+          expect(msgs.last.headers['bar']).to eql 123
+          expect(msgs.last.republish_count).to eql 0
+        end
+        and_then { m.republish(msgs.last) }
+        and_then { wait_until { msgs.size == 2 } }
+        and_lift do
+          expect(msgs.last.tag).to eql 'foo'          # preserves the tag
+          expect(msgs.last.headers['bar']).to eql 123 # preserves the headers
+          expect(msgs.last.republish_count).to eql 1  # increments the republish count
+        end
+        and_then { m.republish(msgs.last) }
+        and_then { wait_until { msgs.size == 3 } }
+        and_lift do
+          expect(msgs.last.republish_count).to eql 2  # can republish a republished message
+        end
+      end
+    end
+  end
+
   it 'propagates logatron headers' do
     real_msg_id = SecureRandom.uuid
     Logatron.msg_id = real_msg_id

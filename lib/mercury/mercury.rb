@@ -60,16 +60,35 @@ class Mercury
     # The amqp gem caches exchange objects, so it's fine to
     # redeclare the exchange every time we publish.
     with_source(source_name) do |exchange|
-      payload = write(msg)
-      pub_opts = Mercury.publish_opts(tag, headers)
-      if publisher_confirms_enabled
-        expect_publisher_confirm(k)
-        exchange.publish(payload, **pub_opts)
-      else
-        exchange.publish(payload, **pub_opts, &k)
-      end
+      publish_internal(exchange, msg, tag, headers, &k)
     end
   end
+
+  ORIGINAL_TAG_HEADER = 'Original-Tag'.freeze
+
+  # Places a copy of the message at the back of the queue, then acks
+  # the original message.
+  def republish(msg, &k)
+    guard_public(k)
+    raise 'Only messages from a work queue can be republished' unless msg.work_queue_name
+    headers = Mercury.increment_republish_count(msg).merge(ORIGINAL_TAG_HEADER => msg.tag)
+    publish_internal(@channel.default_exchange, msg.content, msg.work_queue_name, headers) do
+      msg.ack
+      k.call
+    end
+  end
+
+  def publish_internal(exchange, msg, tag, headers, &k)
+    payload = write(msg)
+    pub_opts = Mercury.publish_opts(tag, headers)
+    if publisher_confirms_enabled
+      expect_publisher_confirm(k)
+      exchange.publish(payload, **pub_opts)
+    else
+      exchange.publish(payload, **pub_opts, &k)
+    end
+  end
+  private :publish_internal
 
   def self.publish_opts(tag, headers)
     { routing_key: tag, persistent: true, headers: Logatron.http_headers.merge(headers) }
@@ -80,7 +99,7 @@ class Mercury
     with_source(source_name) do |exchange|
       with_listener_queue(exchange, tag_filter) do |queue|
         queue.subscribe(ack: false) do |metadata, payload|
-          handler.call(make_received_message(payload, metadata, false))
+          handler.call(make_received_message(payload, metadata))
         end
         k.call
       end
@@ -92,7 +111,7 @@ class Mercury
     with_source(source_name) do |exchange|
       with_work_queue(worker_group, exchange, tag_filter) do |queue|
         queue.subscribe(ack: true) do |metadata, payload|
-          handler.call(make_received_message(payload, metadata, true))
+          handler.call(make_received_message(payload, metadata, work_queue_name: worker_group))
         end
         k.call
       end
@@ -189,9 +208,11 @@ class Mercury
     end
   end
 
-  def make_received_message(payload, metadata, is_ackable)
-    msg = ReceivedMessage.new(read(payload), metadata, is_ackable: is_ackable)
-    Logatron.msg_id = msg.headers['X-Ascent-Log-Id']
+  LOGATRAON_MSG_ID_HEADER = 'X-Ascent-Log-Id'.freeze
+
+  def make_received_message(payload, metadata, work_queue_name: nil)
+    msg = ReceivedMessage.new(read(payload), metadata, work_queue_name: work_queue_name)
+    Logatron.msg_id = msg.headers[LOGATRAON_MSG_ID_HEADER]
     msg
   end
 
@@ -293,6 +314,14 @@ class Mercury
     queue.bind(exchange, routing_key: tag_filter) do
       k.call(queue)
     end
+  end
+
+  REPUBLISH_COUNT_HEADER = 'Republish-Count'.freeze
+
+  # @param msg [Mercury::ReceivedMessage]
+  # @return [Hash] the headers with republish count incremented
+  def self.increment_republish_count(msg)
+    msg.headers.merge(REPUBLISH_COUNT_HEADER => msg.republish_count + 1)
   end
 
   def guard_public(k, initializing: false)
