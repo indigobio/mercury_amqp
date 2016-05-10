@@ -1,5 +1,7 @@
 require 'securerandom'
 require 'delegate'
+require 'active_support/core_ext/hash/keys'
+require 'active_support/core_ext/object/deep_dup'
 require 'mercury/received_message'
 require 'mercury/fake/domain'
 require 'mercury/fake/metadata'
@@ -43,7 +45,15 @@ class Mercury
 
     def publish(source_name, msg, tag: '', headers: {}, &k)
       guard_public(k)
-      queues.values.select{|q| q.binds?(source_name, tag)}.each{|q| q.enqueue(roundtrip(msg), tag, headers)}
+      queues.values.select{|q| q.binds?(source_name, tag)}.each{|q| q.enqueue(roundtrip(msg), tag, headers.stringify_keys)}
+      ret(k)
+    end
+
+    def republish(msg, &k)
+      guard_public(k)
+      msg.ack
+      queue = queues.values.detect{|q| q.worker == msg.work_queue_name}
+      queue.enqueue(roundtrip(msg.content), msg.tag, Mercury.increment_republish_count(msg))
       ret(k)
     end
 
@@ -58,7 +68,7 @@ class Mercury
     def start_worker_or_listener(source_name, handler, tag_filter, worker_group=nil, &k)
       guard_public(k)
       tag_filter ||= '#'
-      q = ensure_queue(source_name, tag_filter, !!worker_group, worker_group)
+      q = ensure_queue(source_name, tag_filter, worker_group)
       ret(k) # it's important we show the "start" operation finishing before delivery starts (in add_subscriber)
       q.add_subscriber(Subscriber.new(handler, @parallelism))
     end
@@ -102,7 +112,8 @@ class Mercury
       ws.read(ws.write(msg))
     end
 
-    def ensure_queue(source, tag_filter, require_ack, worker=nil)
+    def ensure_queue(source, tag_filter, worker)
+      require_ack = worker != nil
       worker ||= SecureRandom.uuid
       queues.fetch(unique_queue_name(source, tag_filter, worker)) do |k|
         queues[k] = Queue.new(source, tag_filter, worker, require_ack)

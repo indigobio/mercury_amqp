@@ -81,12 +81,16 @@ Indicates message handling succeeded. The message is removed from the queue.
 **nack**(_msg_)
 
 Indicates message handling failed, with the assumption that it might succeed at
-a later time. The message is returned to the queue.
+a later time. The message is returned to the front of the queue.
 
 **reject**(_msg_)
 
 Indicates message handling failed, with the assumption that it can never succeed.
 The message is removed from the queue.
+
+**republish**(_msg_)
+
+Like **nack**, except the message is returned to the _back_ of the queue.
 
 _Note:_ All operations create the referenced constructs if they do not already exist.
 
@@ -370,6 +374,42 @@ end
 
 It is particularly useful when writing tests.
 
+
+Design Details
+--------------
+
+#### `Mercury#republish`
+
+This method publishes a copy of the message to the _back_ of the
+queue, then acks the original message. This is a similar operation to
+ack/nack/reject. It is only applicable to messages received by
+workers, since listener messages cannot be acknowledged. Unlike other
+acknowledgements, `#republish` takes a continuation (due to the
+publish operation), so the method is located on `Mercury` rather than
+`Mercury::ReceivedMessage`.
+
+It is important that the message is republished to the AMQP _queue_
+and not the _source_. Acknowledgement is a worker concern. If two
+different worker pools were working off a common source, it wouldn't
+make sense for pool A to get a duplicate message because pool B failed
+to handle the message.
+
+AMQP allows publishing to a particular queue by sending the message to
+the [default exchange][default_exchange], specifying the queue name as
+the routing key. Thus, if the message was originally sent with a
+non-empty routing key, that information is lost. Some clients rely on
+the routing key/tag to dictate behavior (by reading
+`Mercury::ReceivedMessage#tag`). To avoid breaking such clients,
+republish propagates the original tag in a header and reports this value
+as the tag on the republished message.
+
+Republishing also introduces a `Republish-Count` header and
+corresponding attribute `Mercury::ReceivedMessage#republish_count`.
+This value is incremented each time the message is republished.
+Clients may want to check this value and act differently if it exceeds
+some threshold.
+
+
 Design Decisions
 ----------------
 
@@ -386,3 +426,4 @@ is being intentionally ignored.
 [logatron]: https://github.com/indigobio/logatron
 [em_defer]: http://www.rubydoc.info/github/eventmachine/eventmachine/EventMachine.defer
 [fiber_defer]: https://github.com/indigobio/abstractivator/blob/master/lib/abstractivator/fiber_defer.rb
+[default_exchange]: https://www.rabbitmq.com/tutorials/amqp-concepts.html

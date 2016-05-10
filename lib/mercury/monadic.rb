@@ -25,6 +25,7 @@ class Mercury
     end
 
     wrap(:publish)
+    wrap(:republish)
     wrap(:start_listener)
     wrap(:start_worker)
     wrap(:delete_source)
