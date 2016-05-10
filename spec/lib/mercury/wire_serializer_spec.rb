@@ -2,13 +2,13 @@ require 'spec_helper'
 require 'mercury/wire_serializer'
 
 describe Mercury::WireSerializer do
-  subject {Mercury::WireSerializer.new}
+  subject { Mercury::WireSerializer.new }
   describe '#write' do
     it 'writes a string hash as JSON' do
-      expect(subject.write({'a' => 1})).to eql '{"a":1}'
+      expect(subject.write('a' => 1)).to eql '{"a":1}'
     end
     it 'writes a symbol hash as JSON' do
-      expect(subject.write({a: 1})).to eql '{"a":1}'
+      expect(subject.write(a: 1)).to eql '{"a":1}'
     end
     it 'writes a struct as JSON' do
       Foo = Struct.new(:a)

@@ -35,18 +35,18 @@ class Mercury
     #   Cps and returns a Cps
     def and_then(&pm)
       Cps.new do |*args, &k|
-        self.run(*args) do |*args2|
-          next_cps = pm.call(*args2)
-          next_cps.is_a?(Cps) or raise "'and_then' block did not return a Cps object. Did you want 'and_lift'? at #{pm.source_location}"
+        run(*args) do |*args2|
+          next_cps = yield(*args2)
+          next_cps.is_a?(Cps) || raise("'and_then' block did not return a Cps object. Did you want 'and_lift'? at #{pm.source_location}")
           next_cps.run(&k)
         end
       end
     end
 
     # equivalent to: and_then { lift { ... } }
-    def and_lift(&p)
+    def and_lift
       and_then do |*args|
-        Cps.lift { p.call(*args) }
+        Cps.lift { yield(*args) }
       end
     end
 
@@ -80,9 +80,7 @@ class Mercury
           cps.run(*in_args) do |*out_args|
             returned_args[i] = out_args
             pending_completions.delete(cps)
-            if pending_completions.none?
-              k.call(returned_args)
-            end
+            k.call(returned_args) if pending_completions.none?
           end
         end
       end
@@ -92,9 +90,9 @@ class Mercury
     # @yieldparam  x     [Object]  An item from xs
     # @yieldparam  *args [Objects] The value(s) passed from the last action
     # @yieldreturn       [Cps]     The next action to add to the chain
-    def inject(xs, &block)
+    def inject(xs)
       xs.inject(self) do |chain, x|
-        chain.and_then { |*args| block.call(x, *args) }
+        chain.and_then { |*args| yield(x, *args) }
       end
     end
 

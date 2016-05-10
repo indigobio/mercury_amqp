@@ -19,10 +19,10 @@ describe Mercury::Monadic do
   let!(:tag1) { 'tag1' }
   let!(:tag2) { 'tag2' }
   let!(:tag) { tag1 }
-  let!(:msg1) { {'a' => 1} }
-  let!(:msg2) { {'b' => 2} }
-  let!(:msg3) { {'c' => 3} }
-  let!(:msg4) { {'d' => 4} }
+  let!(:msg1) { { 'a' => 1 } }
+  let!(:msg2) { { 'b' => 2 } }
+  let!(:msg3) { { 'c' => 3 } }
+  let!(:msg4) { { 'd' => 4 } }
   let!(:msg) { msg1 }
   let!(:long_enough_to_receive_any_messages) { 0.5 } # seconds
 
@@ -78,8 +78,8 @@ describe Mercury::Monadic do
       end
       seql do
         and_then { m.start_worker('worker1', source1, handle_msg) }
-        and_then { m.publish(source1, {'id' => 1, 'sleep_seconds' => 0.1}) }
-        and_then { m.publish(source1, {'id' => 2, 'sleep_seconds' => 0.1}) }
+        and_then { m.publish(source1, 'id' => 1, 'sleep_seconds' => 0.1) }
+        and_then { m.publish(source1, 'id' => 2, 'sleep_seconds' => 0.1) }
         and_then { wait_until { events.size == 4 } }
         and_lift do
           expect(events).to eql ['received 1', 'received 2', 'finished 1', 'finished 2']
@@ -112,7 +112,7 @@ describe Mercury::Monadic do
       msgs = []
       seql do
         and_then { m.start_listener(source, &msgs.method(:push)) }
-        and_then { m.publish(source, msg, headers: {'foo' => 'bar'}) }
+        and_then { m.publish(source, msg, headers: { 'foo' => 'bar' }) }
         and_then { wait_until { msgs.size == 1 } }
         and_lift do
           expect(msgs[0].headers['foo']).to eql 'bar'
@@ -126,7 +126,7 @@ describe Mercury::Monadic do
       msgs = []
       seql do
         and_then { m.start_worker(worker, source, &msgs.method(:push)) }
-        and_then { m.publish(source, msg, tag: 'foo', headers: {bar: 123}) }
+        and_then { m.publish(source, msg, tag: 'foo', headers: { bar: 123 }) }
         and_then { wait_until { msgs.size == 1 } }
         and_lift do
           expect(msgs.last.tag).to eql 'foo'
@@ -277,7 +277,7 @@ describe Mercury::Monadic do
         and_then { wait_until { msgs.size == 1 } }
         and_lift { msgs[0].reject }
         and_then { wait_for(long_enough_to_receive_any_messages) }
-        and_lift { expect(msgs.size).to eql 1}
+        and_lift { expect(msgs.size).to eql 1 }
       end
     end
   end
@@ -290,7 +290,7 @@ describe Mercury::Monadic do
         and_then { m.publish(source, msg) }
         and_then { wait_until { msgs.size == 1 } }
         and_lift { msgs[0].nack }
-        and_then { wait_until { msgs.size == 2} }
+        and_then { wait_until { msgs.size == 2 } }
       end
     end
   end
@@ -362,15 +362,15 @@ describe Mercury::Monadic do
   describe '#source_exists?' do
     itt 'returns false when the source does not exist' do
       test_with_mercury do |m|
-        m.source_exists?('asdf').
-          and_lift { |result| expect(result).to be false }
+        m.source_exists?('asdf')
+         .and_lift { |result| expect(result).to be false }
       end
     end
 
     it 'returns true when the source exists' do
       test_with_mercury do |m|
-        m.source_exists?('amq.direct').
-          and_lift { |result| expect(result).to be true }
+        m.source_exists?('amq.direct')
+         .and_lift { |result| expect(result).to be true }
       end
     end
   end
@@ -378,16 +378,16 @@ describe Mercury::Monadic do
   describe '#queue_exists?' do
     itt 'returns false when the queue does not exist' do
       test_with_mercury do |m|
-        m.queue_exists?('asdf').
-          and_lift { |result| expect(result).to be false }
+        m.queue_exists?('asdf')
+         .and_lift { |result| expect(result).to be false }
       end
     end
 
     itt 'returns true when the source exists' do
       test_with_mercury do |m|
-        m.start_worker(queue1, source1, proc{}).
-          and_then { m.queue_exists?(queue1) }.
-          and_lift { |result| expect(result).to be true }
+        m.start_worker(queue1, source1, proc {})
+         .and_then { m.queue_exists?(queue1) }
+         .and_lift { |result| expect(result).to be true }
       end
     end
   end
@@ -407,4 +407,3 @@ describe Mercury::Monadic do
     test_with_mercury_cps(sources, queues, parallelism: parallelism, &block)
   end
 end
-

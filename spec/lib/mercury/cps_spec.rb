@@ -10,40 +10,40 @@ describe Cps do
 
   describe '::lift' do
     it 'CPS-transforms a non-CPS proc' do
-      expect(Cps.lift{rand}.run).to be_a Numeric
+      expect(Cps.lift { rand }.run).to be_a Numeric
     end
     it 'raises an error if the block returns a Cps object' do
-      expect{lift{lift{'cps'}}.run}.to raise_error /returned a Cps/
+      expect { lift { lift { 'cps' } }.run }.to raise_error /returned a Cps/
     end
   end
 
   describe '::run' do
     it 'passes the value to the continuation' do
-      expect{|b| lift{a}.run(&b)}.to yield_with_args(a)
+      expect { |b| lift { a }.run(&b) }.to yield_with_args(a)
     end
     it 'returns the return value of the continuation' do
-      expect(lift{a}.run{456}).to eql 456
+      expect(lift { a }.run { 456 }).to eql 456
     end
     it 'feeds its arguments into the Cps' do
-      expect{|b| Cps.identity.run(a, &b)}.to yield_with_args(a)
+      expect { |b| Cps.identity.run(a, &b) }.to yield_with_args(a)
     end
   end
 
   describe '#and_then' do
     it 'composes two Cps instances' do
-      expect(lift{a}.and_then{|x| to_string(x)}.run).to eql a.to_s
+      expect(lift { a }.and_then { |x| to_string(x) }.run).to eql a.to_s
     end
     it 'raises an error if the block does not return a Cps object' do
-      expect{lift{a}.and_then{'not-cps'}.run}.to raise_error /did not return a Cps/
+      expect { lift { a }.and_then { 'not-cps' }.run }.to raise_error /did not return a Cps/
     end
   end
 
   describe '#and_lift' do
     it 'composes a Cps instance with a normal proc' do
-      expect(lift{a}.and_lift{|x| x.to_s}.run).to eql a.to_s
+      expect(lift { a }.and_lift(&:to_s).run).to eql a.to_s
     end
     it 'raises an error if the block returns a Cps object' do
-      expect{lift{a}.and_lift{lift{'cps'}}.run}.to raise_error /returned a Cps/
+      expect { lift { a }.and_lift { lift { 'cps' } }.run }.to raise_error /returned a Cps/
     end
   end
 
@@ -57,13 +57,13 @@ describe Cps do
         task1 = proc do |n, &k|
           actions << 'start1'
           started1 = true
-          em_wait_until(proc{finished2}) do
+          em_wait_until(proc { finished2 }) do
             actions << 'finish1'
             k.call(n.to_s)
           end
         end
         task2 = proc do |n, &k|
-          em_wait_until(proc{started1}) do
+          em_wait_until(proc { started1 }) do
             actions << 'start2'
             actions << 'finish2'
             finished2 = true
@@ -73,7 +73,7 @@ describe Cps do
 
         result = nil
         Cps.concurrently(Cps.new(&task1), Cps.new(&task2)).run(42) { |r| result = r }
-        em_wait_until(proc{result}) do
+        em_wait_until(proc { result }) do
           expect(result).to eql [['42'], [-42]]
           expect(actions).to eql %w(start1 start2 finish2 finish1)
           done
@@ -97,7 +97,7 @@ describe Cps do
         th.en { |v| twice(v) }
         th.en do |v|
           Cps.seq do |th|
-            th.en { reverse(v)  }
+            th.en { reverse(v) }
             th.en { |v| surround(v) }
           end
         end
@@ -139,7 +139,7 @@ describe Cps do
     it 'passes a bound value to the next function' do
       result = Cps.seql do
         let(:v) { to_string(a) }
-        and_then { |x| lift{x} }
+        and_then { |x| lift { x } }
       end.run
       expect(result).to eql '123'
     end
@@ -168,18 +168,18 @@ describe Cps do
         expect(FLIP).to eql 'flip'
       end
     end
-    FLIP = 'flip'
+    FLIP = 'flip'.freeze
   end
 
   describe '::identity' do
     it 'passes its arguments to the continuation' do
-      expect{|b| Cps.identity.run(a, &b)}.to yield_with_args(a)
+      expect { |b| Cps.identity.run(a, &b) }.to yield_with_args(a)
     end
   end
 
   describe '#inject' do
     it 'creates a Cps chain given an array and a transformation function' do
-      chain = lift{'entity'}.inject(['-ize', '-er']) do |suffix, v|
+      chain = lift { 'entity' }.inject(['-ize', '-er']) do |suffix, v|
         lift { v + suffix }
       end
       expect(chain.run).to eql 'entity-ize-er'
@@ -192,30 +192,30 @@ describe Cps do
 
   it 'obeys the left identity law' do
     # return a >>= f  ===  f a
-    expect_identical(lift{a}.and_then(&method(:to_string)),
+    expect_identical(lift { a }.and_then(&method(:to_string)),
                      to_string(a),
                      '123')
   end
 
   it 'obeys the right identity law' do
     # m >>= return  === m
-    m = lift{123}
-    expect_identical(m.and_then{|x| lift{x}},
+    m = lift { 123 }
+    expect_identical(m.and_then { |x| lift { x } },
                      m,
                      123)
   end
 
   it 'obeys the associativity law' do
     # (m >>= f) >>= g  ===  m >>= (\x -> f x >>= g)
-    m = lift{123}
-    expect_identical((m.and_then(&method(:to_string))).and_then(&method(:twice)),
-                     m.and_then {|x| to_string(x).and_then(&method(:twice)) },
+    m = lift { 123 }
+    expect_identical(m.and_then(&method(:to_string)).and_then(&method(:twice)),
+                     m.and_then { |x| to_string(x).and_then(&method(:twice)) },
                      '123123')
   end
 
   def expect_identical(lhs, rhs, expected_value)
-    expect{|b| lhs.run(&b)}.to yield_with_args(expected_value)
-    expect{|b| rhs.run(&b)}.to yield_with_args(expected_value)
+    expect { |b| lhs.run(&b) }.to yield_with_args(expected_value)
+    expect { |b| rhs.run(&b) }.to yield_with_args(expected_value)
   end
 
   def to_string(x)

@@ -7,10 +7,10 @@ describe Mercury::Sync do
   let!(:source) { 'test-exchange1' }
   let!(:queue) { 'test-queue1' }
   describe '::publish' do
-    %w{with without}.each do |w|
+    %w(with without).each do |w|
       it "publishes synchronously (#{w} publisher confirms)" do
         use_publisher_confirms = w == 'with'
-        sent = {'a' => 1}
+        sent = { 'a' => 1 }
         received = []
         test_with_mercury(wait_for_publisher_confirms: use_publisher_confirms) do |m|
           seql do

@@ -13,7 +13,7 @@ class Mercury
         ex = ch.topic(source_name, Mercury.source_opts)
         ex.publish(WireSerializer.new.write(msg), **Mercury.publish_opts(tag, {}))
         if wait_for_publisher_confirms
-          ch.wait_for_confirms or raise 'failed to confirm publication'
+          ch.wait_for_confirms || raise('failed to confirm publication')
         end
       ensure
         conn.close

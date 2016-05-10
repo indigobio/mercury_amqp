@@ -2,10 +2,9 @@ require 'rspec'
 require 'mercury/received_message'
 
 describe Mercury::ReceivedMessage do
-
   describe '#ack' do
     it 'raises an error if the message is not actionable' do
-      expect{make_non_actionable.ack}.to raise_error /not ackable/
+      expect { make_non_actionable.ack }.to raise_error /not ackable/
     end
     it 'raises an error if an action was already taken' do
       msg = make_actionable
@@ -16,7 +15,7 @@ describe Mercury::ReceivedMessage do
 
   describe '#nack' do
     it 'raises an error if the message is not actionable' do
-      expect{make_non_actionable.nack}.to raise_error /not nackable/
+      expect { make_non_actionable.nack }.to raise_error /not nackable/
     end
     it 'raises an error if an action was already taken' do
       msg = make_actionable
@@ -27,7 +26,7 @@ describe Mercury::ReceivedMessage do
 
   describe '#reject' do
     it 'raises an error if the message is not actionable' do
-      expect{make_non_actionable.reject}.to raise_error /not rejectable/
+      expect { make_non_actionable.reject }.to raise_error /not rejectable/
     end
     it 'raises an error if an action was already taken' do
       msg = make_actionable

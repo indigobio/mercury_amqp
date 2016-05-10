@@ -1,6 +1,5 @@
 class Mercury
   class Cps
-
     # Syntactic sugar for and_then chains.
     def self.seq(&block)
       s = Seq.new
@@ -13,7 +12,7 @@ class Mercury
         @m ||= Cps.identity # we need an initial Cps to chain onto
       end
 
-      def chain(proc=nil, &block)
+      def chain(proc = nil, &block)
         @m = m.and_then(&(proc || block))
       end
     end
@@ -21,5 +20,5 @@ class Mercury
 end
 
 class Method
-  alias_method :en, :call # to be called `th.en`
+  alias en call # to be called `th.en`
 end

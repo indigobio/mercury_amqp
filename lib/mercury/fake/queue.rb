@@ -26,7 +26,7 @@ class Mercury
       end
 
       def ack_or_reject_message(msg)
-        msgs.delete(msg) or raise 'tried to delete message that was not in queue!!'
+        msgs.delete(msg) || raise('tried to delete message that was not in queue!!')
         msg.subscriber.handle_capacity += 1
         deliver # a subscriber just freed up
       end
@@ -42,6 +42,7 @@ class Mercury
       end
 
       private
+
       attr_reader :msgs, :subscribers, :tag_filter
 
       def tag_match?(filter, tag)

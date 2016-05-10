@@ -3,7 +3,7 @@ require 'binding_of_caller'
 class Mercury
   class Cps
     # Syntactic sugar for and_then chains.
-    def self.seql(depth=1, &block)
+    def self.seql(depth = 1, &block)
       # EXPERIMENTAL
       # The trick here is to execute the block in a context where
       # 1. we can simulate local let-bound variables, and
@@ -23,7 +23,6 @@ class Mercury
     end
 
     class SeqWithLet
-
       def and_then(&block)
         @__chain = __chain.and_then(&block)
       end
@@ -36,7 +35,7 @@ class Mercury
         and_then(&block)
         and_then do |value|
           __values[name] = value
-          Cps.lift{value}
+          Cps.lift { value }
         end
       end
 

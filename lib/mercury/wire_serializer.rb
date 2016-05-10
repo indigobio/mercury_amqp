@@ -23,17 +23,15 @@ class Mercury
     end
 
     def read_json(bytes)
-      begin
-        Oj.compat_load(bytes, oj_options)
-      rescue Oj::ParseError => e
-        bytes
-      end
+      Oj.compat_load(bytes, oj_options)
+    rescue Oj::ParseError => e
+      bytes
     end
 
     def oj_options
       {
         mode: :compat,
-        time_format: :xmlschema,  # xmlschema == iso8601
+        time_format: :xmlschema, # xmlschema == iso8601
         use_to_json: false,
         second_precision: 3
       }
@@ -49,6 +47,5 @@ class Mercury
         raise "Could not convert to hash: #{x.inspect}"
       end
     end
-
   end
 end
