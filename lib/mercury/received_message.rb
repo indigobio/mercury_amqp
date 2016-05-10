@@ -38,14 +38,12 @@ class Mercury
     private
 
     def is_ackable
-      @work_queue_name != nil
+      !@work_queue_name.nil?
     end
 
     def performing_action(action)
-      is_ackable or raise "This message is not #{action}able"
-      if @action_taken
-        raise "This message was already #{@action_taken}ed"
-      end
+      is_ackable || raise("This message is not #{action}able")
+      raise "This message was already #{@action_taken}ed" if @action_taken
       @action_taken = action
     end
   end

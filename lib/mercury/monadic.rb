@@ -3,7 +3,6 @@ require 'mercury/cps'
 
 class Mercury
   class Monadic
-
     def self.open(**kws)
       Cps.new do |&k|
         Mercury.open(**kws) do |m|
@@ -35,6 +34,7 @@ class Mercury
     wrap(:close)
 
     private
+
     def initialize(mercury)
       @mercury = mercury
     end

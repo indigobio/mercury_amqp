@@ -29,7 +29,7 @@ describe Mercury do
       em do
         Mercury.open do |m|
           m.close do
-            expect { m.publish(queue, {'a' => 1}) }.to raise_error /closed/
+            expect { m.publish(queue, 'a' => 1) }.to raise_error /closed/
             done
           end
         end
@@ -43,7 +43,7 @@ describe Mercury do
         received = []
         m.start_listener(source, received.method(:push)) do
           m.publish(source, sent) do
-            em_wait_until(proc{received.any?}) do
+            em_wait_until(proc { received.any? }) do
               expect(received.size).to eql 1
               expect(received[0].content).to eql sent
               m.close do
@@ -62,7 +62,7 @@ describe Mercury do
         received = []
         m.start_worker(queue, source, received.method(:push)) do
           m.publish(source, sent) do
-            em_wait_until(proc{received.any?}) do
+            em_wait_until(proc { received.any? }) do
               expect(received.size).to eql 1
               expect(received[0].content).to eql sent
               m.close do
@@ -179,10 +179,8 @@ describe Mercury do
   def with_mercury(timeout_seconds: 3, &block)
     sources = [source]
     queues = [queue]
-    em(timeout_seconds: timeout_seconds) { delete_sources_and_queues_cps(sources, queues).run{done} }
+    em(timeout_seconds: timeout_seconds) { delete_sources_and_queues_cps(sources, queues).run { done } }
     em(timeout_seconds: timeout_seconds) { Mercury.open(&block) }
-    em(timeout_seconds: timeout_seconds) { delete_sources_and_queues_cps(sources, queues).run{done} }
+    em(timeout_seconds: timeout_seconds) { delete_sources_and_queues_cps(sources, queues).run { done } }
   end
-
 end
-
