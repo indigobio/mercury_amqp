@@ -5,6 +5,9 @@ require 'mercury/received_message'
 require 'logatron/logatron'
 
 class Mercury
+  ORIGINAL_TAG_HEADER = 'Original-Tag'.freeze
+  REPUBLISH_COUNT_HEADER = 'Republish-Count'.freeze
+
   attr_reader :amqp, :channel, :logger
 
   def self.open(logger: Logatron, **kws, &k)
@@ -63,8 +66,6 @@ class Mercury
       publish_internal(exchange, msg, tag, headers, &k)
     end
   end
-
-  ORIGINAL_TAG_HEADER = 'Original-Tag'.freeze
 
   # Places a copy of the message at the back of the queue, then acks
   # the original message.
@@ -156,6 +157,8 @@ class Mercury
 
   private
 
+  LOGATRAON_MSG_ID_HEADER = 'X-Ascent-Log-Id'.freeze
+
   # In AMQP, queue consumers ack requests after handling them. Unacked messages
   # are automatically returned to the queue, guaranteeing they are eventually handled.
   # Services often ack one request while publishing related messages. Ideally, these
@@ -207,8 +210,6 @@ class Mercury
       @confirm_handlers.delete(tag).call
     end
   end
-
-  LOGATRAON_MSG_ID_HEADER = 'X-Ascent-Log-Id'.freeze
 
   def make_received_message(payload, metadata, work_queue_name: nil)
     msg = ReceivedMessage.new(read(payload), metadata, work_queue_name: work_queue_name)
@@ -315,8 +316,6 @@ class Mercury
       k.call(queue)
     end
   end
-
-  REPUBLISH_COUNT_HEADER = 'Republish-Count'.freeze
 
   # @param msg [Mercury::ReceivedMessage]
   # @return [Hash] the headers with republish count incremented
