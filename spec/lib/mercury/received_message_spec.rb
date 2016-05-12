@@ -36,6 +36,19 @@ describe Mercury::ReceivedMessage do
     end
   end
 
+  describe '#republish' do
+    it 'calls Mercury#republish' do
+      mercury_instance = double
+      msg = Mercury::ReceivedMessage.new('hello', make_metadata, mercury_instance, work_queue_name: 'foo')
+      cont = proc{}
+      expect(mercury_instance).to receive(:republish) do |m, &k|
+        expect(m).to eql msg
+        expect(k).to eql cont
+      end
+      msg.republish(&cont)
+    end
+  end
+
   describe '#action_taken' do
     it 'returns the action taken' do
       a = make_actionable
@@ -56,11 +69,11 @@ describe Mercury::ReceivedMessage do
   end
 
   def make_actionable
-    Mercury::ReceivedMessage.new('hello', make_metadata, work_queue_name: 'foo')
+    Mercury::ReceivedMessage.new('hello', make_metadata, double, work_queue_name: 'foo')
   end
 
   def make_non_actionable
-    Mercury::ReceivedMessage.new('hello', make_metadata, work_queue_name: nil)
+    Mercury::ReceivedMessage.new('hello', make_metadata, double, work_queue_name: nil)
   end
 
   def make_metadata

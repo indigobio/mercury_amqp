@@ -149,6 +149,21 @@ describe Mercury::Monadic do
     end
   end
 
+  it 'cannot republish acked messages' do
+    test_with_mercury do |m|
+      msgs = []
+      seql do
+        and_then { m.start_worker(worker, source, &msgs.method(:push)) }
+        and_then { m.publish(source, msg, tag: 'foo', headers: {bar: 123}) }
+        and_then { wait_until { msgs.size == 1 } }
+        and_lift do
+          msgs[0].ack
+          expect{msgs[0].republish}.to raise_error /acked/
+        end
+      end
+    end
+  end
+
   it 'propagates logatron headers' do
     real_msg_id = SecureRandom.uuid
     Logatron.msg_id = real_msg_id
