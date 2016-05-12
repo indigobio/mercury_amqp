@@ -72,6 +72,8 @@ class Mercury
   def republish(msg, &k)
     guard_public(k)
     raise 'Only messages from a work queue can be republished' unless msg.work_queue_name
+    raise 'A message can only be republished by the mercury instance that received it' unless msg.mercury_instance == self
+    raise "This message was already #{msg.action_taken}ed" if msg.action_taken
     headers = Mercury.increment_republish_count(msg).merge(ORIGINAL_TAG_HEADER => msg.tag)
     publish_internal(@channel.default_exchange, msg.content, msg.work_queue_name, headers) do
       msg.ack
@@ -212,7 +214,7 @@ class Mercury
   end
 
   def make_received_message(payload, metadata, work_queue_name: nil)
-    msg = ReceivedMessage.new(read(payload), metadata, work_queue_name: work_queue_name)
+    msg = ReceivedMessage.new(read(payload), metadata, self, work_queue_name: work_queue_name)
     Logatron.msg_id = msg.headers[LOGATRAON_MSG_ID_HEADER]
     msg
   end

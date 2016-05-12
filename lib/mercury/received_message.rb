@@ -1,10 +1,11 @@
 class Mercury
   class ReceivedMessage
-    attr_reader :content, :metadata, :action_taken, :work_queue_name
+    attr_reader :content, :metadata, :mercury_instance, :action_taken, :work_queue_name
 
-    def initialize(content, metadata, work_queue_name: nil)
+    def initialize(content, metadata, mercury_instance, work_queue_name: nil)
       @content = content
       @metadata = metadata
+      @mercury_instance = mercury_instance
       @work_queue_name = work_queue_name
     end
 
@@ -33,6 +34,11 @@ class Mercury
     def nack
       performing_action(:nack)
       metadata.reject(requeue: true)
+    end
+
+    def republish(&k)
+      k ||= proc{}
+      mercury_instance.republish(self, &k)
     end
 
     private
