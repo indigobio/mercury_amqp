@@ -31,5 +31,5 @@ Gem::Specification.new do |spec|
   spec.add_runtime_dependency 'bunny', '~> 2.1'
   spec.add_runtime_dependency 'binding_of_caller', '~> 0.7'
   spec.add_runtime_dependency 'logatron', '~> 0'
-  spec.add_runtime_dependency 'activesupport', '~> 4.0'
+  spec.add_runtime_dependency 'activesupport', '> 4.0', '< 6.0'
 end
