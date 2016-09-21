@@ -1,11 +1,10 @@
 # coding: utf-8
 lib = File.expand_path('../lib', __FILE__)
 $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
-require 'mercury/version'
 
 Gem::Specification.new do |spec|
   spec.name          = 'mercury_amqp'
-  spec.version       = Mercury::VERSION
+  spec.version       = '0.6.0'
   spec.authors       = ['Peter Winton']
   spec.email         = ['wintonpc@gmail.com']
   spec.summary       = 'AMQP-backed messaging layer'
