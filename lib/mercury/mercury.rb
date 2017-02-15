@@ -216,7 +216,16 @@ class Mercury
   def make_received_message(payload, metadata, work_queue_name: nil)
     msg = ReceivedMessage.new(read(payload), metadata, self, work_queue_name: work_queue_name)
     Logatron.msg_id = msg.headers[LOGATRAON_MSG_ID_HEADER]
+    Logatron.site = get_message_site(msg.content)
     msg
+  end
+
+  def get_message_site(content)
+    content['organization'] ||
+      content['customer'] ||
+      content['site'] ||
+      content.fetch('request', {})['customer'] ||
+      '-'
   end
 
   def existence_check(k, &check)
