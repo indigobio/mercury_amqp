@@ -182,6 +182,58 @@ describe Mercury::Monadic do
     end
   end
 
+  shared_examples 'a message with a site' do
+    it 'sets the current site in logatron' do
+      test_with_mercury do |m|
+        msgs = []
+        seql do
+          and_then { m.start_listener(source, &msgs.method(:push)) }
+          and_then { m.publish(source, site_msg) }
+          and_then { wait_until { msgs.size == 1 } }
+          and_lift { expect(Logatron.site).to eql current_site }
+        end
+      end
+    end
+  end
+
+  context 'when a message sets the current site in the organization field' do
+    let(:current_site) { 'site1' }
+    let(:site_msg) { {'organization' => current_site} }
+    include_examples 'a message with a site'
+  end
+
+  context 'when a message sets the current site in the customer field' do
+    let(:current_site) { 'site2' }
+    let(:site_msg) { {'customer' => current_site} }
+    include_examples 'a message with a site'
+  end
+
+  context 'when a message sets the current site in the site field' do
+    let(:current_site) { 'site3' }
+    let(:site_msg) { {'site' => current_site} }
+    include_examples 'a message with a site'
+  end
+
+  context 'when a message sets the current site in the request->customer field' do
+    let(:current_site) { 'site4' }
+    let(:site_msg) { {'request' => { 'customer' => current_site}} }
+    include_examples 'a message with a site'
+  end
+
+  context 'when a message does not set the current site' do
+    it 'sets the current site to blank' do
+      test_with_mercury do |m|
+        msgs = []
+        seql do
+          and_then { m.start_listener(source, &msgs.method(:push)) }
+          and_then { m.publish(source, {'a' => 1}) }
+          and_then { wait_until { msgs.size == 1 } }
+          and_lift { expect(Logatron.site).to eql '-' }
+        end
+      end
+    end
+  end
+
   itt 'uses AMQP-style tag filters' do
     test_with_mercury do |m|
       successes = []

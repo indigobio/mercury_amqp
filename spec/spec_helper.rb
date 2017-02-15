@@ -17,6 +17,8 @@ def test_with_mercury_cps(sources, queues, **kws, &block)
   end
 end
 
+Logatron.configuration.logger = Logger.new(File::NULL)
+
 module MercuryFakeSpec
   def self.included(base)
     base.extend(ClassMethods)

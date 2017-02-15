@@ -114,6 +114,10 @@ logatron's request ID (`Logatron.msg_id`) through the AMQP header
 logs associated with a particular incoming request, even though the
 log entries may be scattered across various services.
 
+Mercury also sets the current site from the message as the Logatron site
+('Logatron.site'). This value is set in differently in the different messages in our
+system, which are currently hard-coded into Mercury.
+
 ### Thread safety
 
 Mercury is not threadsafe. All calls to a particular instance must be made from the
