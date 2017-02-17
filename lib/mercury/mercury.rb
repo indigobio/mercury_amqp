@@ -1,8 +1,9 @@
 require 'amqp'
 require 'securerandom'
+require 'logger'
 require 'mercury/wire_serializer'
 require 'mercury/received_message'
-require 'logatron/logatron'
+require 'active_support/core_ext/enumerable'
 
 class Mercury
   ORIGINAL_TAG_HEADER = 'Original-Tag'.freeze
@@ -10,7 +11,7 @@ class Mercury
 
   attr_reader :amqp, :channel, :logger
 
-  def self.open(logger: Logatron, **kws, &k)
+  def self.open(logger: Logger.new(STDOUT), **kws, &k)
     new(logger: logger, **kws, &k)
     nil
   end
@@ -94,7 +95,7 @@ class Mercury
   private :publish_internal
 
   def self.publish_opts(tag, headers)
-    { routing_key: tag, persistent: true, headers: Logatron.http_headers.merge(headers) }
+    { routing_key: tag, persistent: true, headers: headers }
   end
 
   def start_listener(source_name, handler, tag_filter: nil, &k)
@@ -159,8 +160,6 @@ class Mercury
 
   private
 
-  LOGATRAON_MSG_ID_HEADER = 'X-Ascent-Log-Id'.freeze
-
   # In AMQP, queue consumers ack requests after handling them. Unacked messages
   # are automatically returned to the queue, guaranteeing they are eventually handled.
   # Services often ack one request while publishing related messages. Ideally, these
@@ -214,9 +213,7 @@ class Mercury
   end
 
   def make_received_message(payload, metadata, work_queue_name: nil)
-    msg = ReceivedMessage.new(read(payload), metadata, self, work_queue_name: work_queue_name)
-    Logatron.msg_id = msg.headers[LOGATRAON_MSG_ID_HEADER]
-    msg
+    ReceivedMessage.new(read(payload), metadata, self, work_queue_name: work_queue_name)
   end
 
   def existence_check(k, &check)

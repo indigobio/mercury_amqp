@@ -105,15 +105,6 @@ arbitrary encoding. The receiving client receives the exact same
 string as the message content (assuming the serialized message fails to
 parse as JSON).
 
-### Logatron integration
-
-Mercury depends on the
-[`logatron`][logatron] gem and propagates
-logatron's request ID (`Logatron.msg_id`) through the AMQP header
-`X-Ascent-Log-Id`. This enables a log aggregation service to find the
-logs associated with a particular incoming request, even though the
-log entries may be scattered across various services.
-
 ### Thread safety
 
 Mercury is not threadsafe. All calls to a particular instance must be made from the
@@ -423,7 +414,6 @@ is being intentionally ignored.
 
 [amqp]: https://github.com/ruby-amqp/amqp
 [em]: https://github.com/eventmachine/eventmachine
-[logatron]: https://github.com/indigobio/logatron
 [em_defer]: http://www.rubydoc.info/github/eventmachine/eventmachine/EventMachine.defer
 [fiber_defer]: https://github.com/indigobio/abstractivator/blob/master/lib/abstractivator/fiber_defer.rb
 [default_exchange]: https://www.rabbitmq.com/tutorials/amqp-concepts.html
