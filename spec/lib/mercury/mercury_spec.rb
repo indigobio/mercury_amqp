@@ -1,5 +1,6 @@
 require 'spec_helper'
 require 'mercury'
+require 'logger'
 
 describe Mercury do
   include MercuryFakeSpec
@@ -10,6 +11,7 @@ describe Mercury do
   let!(:sent) { { 'a' => 1 } }
   let!(:source) { 'test-exchange' }
   let!(:queue) { 'test-queue' }
+  let(:nullogger) { Logger.new(File::NULL) }
 
   describe '::open' do
     it 'opens a mercury instance' do
@@ -82,7 +84,7 @@ describe Mercury do
   # end
 
   it 'raises an error when the connection breaks' do
-    expect { em { Mercury.open { done } } }.to raise_error /Lost connection/
+    expect { em { Mercury.open(logger: nullogger) { done } } }.to raise_error /Lost connection/
     expect(EM.reactor_running?).to be false   # make sure we're not triggering EventMachine cleanup bugs
   end
 
@@ -137,7 +139,7 @@ describe Mercury do
   it 'raises when an error occurs' do
     expect do
       em do
-        Mercury.open do |m|
+        Mercury.open(logger: nullogger) do |m|
           ch = m.instance_variable_get(:@channel)
           ch.acknowledge(42) # force a channel error
         end
@@ -153,7 +155,7 @@ describe Mercury do
             @mercury.publish(source, 'hello')
           end
         end
-        Mercury.open(on_error: handler) do |m|
+        Mercury.open(logger: nullogger, on_error: handler) do |m|
           @mercury = m
           ch = m.instance_variable_get(:@channel)
           ch.acknowledge(42) # force a channel error

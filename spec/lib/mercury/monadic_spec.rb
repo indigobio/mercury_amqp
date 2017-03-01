@@ -3,7 +3,6 @@ require 'spec_helper'
 require 'mercury'
 require 'mercury/monadic'
 require 'securerandom'
-require 'logatron/logatron'
 
 describe Mercury::Monadic do
   include Cps::Methods
@@ -159,24 +158,6 @@ describe Mercury::Monadic do
         and_lift do
           msgs[0].ack
           expect{msgs[0].republish}.to raise_error /acked/
-        end
-      end
-    end
-  end
-
-  it 'propagates logatron headers' do
-    real_msg_id = SecureRandom.uuid
-    Logatron.msg_id = real_msg_id
-    test_with_mercury do |m|
-      msgs = []
-      seql do
-        and_then { m.start_listener(source, &msgs.method(:push)) }
-        and_lift { EM.next_tick { Logatron.msg_id = 'fake_msg_id' } } # we want this to happen right after publishing but before getting the response
-        and_then { m.publish(source, msg) }
-        and_then { wait_until { msgs.size == 1 } }
-        and_lift do
-          expect(msgs[0].headers['X-Ascent-Log-Id']).to eql real_msg_id
-          expect(Logatron.msg_id).to eql real_msg_id
         end
       end
     end
