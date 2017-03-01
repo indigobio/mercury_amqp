@@ -4,7 +4,7 @@ $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
 
 Gem::Specification.new do |spec|
   spec.name          = 'mercury_amqp'
-  spec.version       = '0.7.0'
+  spec.version       = '0.8.0'
   spec.authors       = ['Peter Winton']
   spec.email         = ['wintonpc@gmail.com']
   spec.summary       = 'AMQP-backed messaging layer'
@@ -29,6 +29,5 @@ Gem::Specification.new do |spec|
   spec.add_runtime_dependency 'amqp', '~> 1.5'
   spec.add_runtime_dependency 'bunny', '~> 2.1'
   spec.add_runtime_dependency 'binding_of_caller', '~> 0.7'
-  spec.add_runtime_dependency 'logatron', '~> 0'
   spec.add_runtime_dependency 'activesupport', '> 4.0', '< 6.0'
 end

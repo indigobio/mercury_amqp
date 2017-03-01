@@ -1,8 +1,6 @@
 require 'spec_helper'
 require 'mercury/cps'
 
-Cps = Mercury::Cps
-
 describe Cps do
   include Cps::Methods
 
