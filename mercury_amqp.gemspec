@@ -25,7 +25,7 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency 'evented-spec', '~> 0.9'
   spec.add_development_dependency 'rspec_junit_formatter', '~> 0'
 
-  spec.add_runtime_dependency 'oj', '~> 2.12'
+  spec.add_runtime_dependency 'oj', '~> 3.0'
   spec.add_runtime_dependency 'amqp', '~> 1.5'
   spec.add_runtime_dependency 'bunny', '~> 2.1'
   spec.add_runtime_dependency 'binding_of_caller', '~> 0.7'
