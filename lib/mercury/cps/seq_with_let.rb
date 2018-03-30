@@ -1,9 +1,7 @@
-require 'binding_of_caller'
-
 class Mercury
   class Cps
     # Syntactic sugar for and_then chains.
-    def self.seql(depth=1, &block)
+    def self.seql(&block)
       # EXPERIMENTAL
       # The trick here is to execute the block in a context where
       # 1. we can simulate local let-bound variables, and
@@ -17,7 +15,7 @@ class Mercury
       #
       # Note: parent instance variables are not available inside the block.
       # Note: keyword arguments are not proxied to methods called in the parent binding
-      context = SeqWithLet.new(binding.of_caller(depth))
+      context = SeqWithLet.new(block.binding)
       context.instance_exec(&block)
       context.__chain
     end
