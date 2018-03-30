@@ -114,11 +114,26 @@ class Mercury
     guard_public(k)
     with_source(source_name) do |exchange|
       with_work_queue(worker_group, exchange, tag_filter) do |queue|
-        queue.subscribe(ack: true) do |metadata, payload|
-          handler.call(make_received_message(payload, metadata, work_queue_name: worker_group))
-        end
+        subscribe_worker(queue, handler)
         k.call
       end
+    end
+  end
+
+  # Production code should not call this.
+  # Only test/tool code should call this, and only if you're sure
+  # the worker queue already exists and is bound to the source
+  def start_queue_worker(worker_group, handler, &k)
+    guard_public(k)
+    @channel.queue(worker_group, work_queue_opts) do |queue|
+      subscribe_worker(queue, handler)
+      k.call
+    end
+  end
+
+  private def subscribe_worker(queue, handler)
+    queue.subscribe(ack: true) do |metadata, payload|
+      handler.call(make_received_message(payload, metadata, work_queue_name: queue.name))
     end
   end
 
@@ -202,11 +217,11 @@ class Mercury
 
   def dispatch_publisher_confirm(basic_ack)
     confirmed_tags =
-      if basic_ack.multiple
-        @confirm_handlers.keys.select { |tag| tag <= basic_ack.delivery_tag }.sort # sort just to be deterministic
-      else
-        [basic_ack.delivery_tag]
-      end
+        if basic_ack.multiple
+          @confirm_handlers.keys.select { |tag| tag <= basic_ack.delivery_tag }.sort # sort just to be deterministic
+        else
+          [basic_ack.delivery_tag]
+        end
     confirmed_tags.each do |tag|
       @confirm_handlers.delete(tag).call
     end
@@ -310,9 +325,10 @@ class Mercury
 
   def bind_queue(exchange, queue_name, tag_filter, opts, &k)
     tag_filter ||= '#'
-    queue = @channel.queue(queue_name, opts)
-    queue.bind(exchange, routing_key: tag_filter) do
-      k.call(queue)
+    @channel.queue(queue_name, opts) do |queue|
+      queue.bind(exchange, routing_key: tag_filter) do
+        k.call(queue)
+      end
     end
   end
 

@@ -76,13 +76,27 @@ describe Mercury::Monadic do
         end
       end
       seql do
-        and_then { m.start_worker('worker1', source1, handle_msg) }
+        and_then { m.start_worker(queue1, source1, handle_msg) }
         and_then { m.publish(source1, {'id' => 1, 'sleep_seconds' => 0.1}) }
         and_then { m.publish(source1, {'id' => 2, 'sleep_seconds' => 0.1}) }
         and_then { wait_until { events.size == 4 } }
         and_lift do
           expect(events).to eql ['received 1', 'received 2', 'finished 1', 'finished 2']
         end
+      end
+    end
+  end
+
+  it 'subscribes to a preexisting queue' do
+    test_with_mercury do |m|
+      msgs = []
+      seql do
+        let(:other_m) { Mercury::Monadic.open }
+        and_then { other_m.start_worker(queue1, source1, :nack.to_proc) }
+        and_then { other_m.close }
+        and_then { m.start_queue_worker(queue1, msgs.method(:push)) }
+        and_then { m.publish(source1, {'id' => 1}) }
+        and_then { wait_until { msgs.size == 1 } }
       end
     end
   end
