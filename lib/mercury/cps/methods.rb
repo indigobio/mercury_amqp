@@ -10,7 +10,7 @@ class Mercury
       end
 
       def seql(&block)
-        Cps.seql(2, &block)
+        Cps.seql(&block)
       end
 
       def seqp(&block)

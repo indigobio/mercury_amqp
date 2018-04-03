@@ -28,6 +28,7 @@ class Mercury
     wrap(:republish)
     wrap(:start_listener)
     wrap(:start_worker)
+    wrap(:start_queue_worker)
     wrap(:delete_source)
     wrap(:delete_work_queue)
     wrap(:source_exists?)
