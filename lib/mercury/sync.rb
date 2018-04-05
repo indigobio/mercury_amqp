@@ -16,7 +16,7 @@ class Mercury
           ch.wait_for_confirms or raise 'failed to confirm publication'
         end
       ensure
-        conn.close
+        conn&.close
       end
     end
   end

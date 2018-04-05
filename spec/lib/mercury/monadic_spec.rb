@@ -3,6 +3,7 @@ require 'spec_helper'
 require 'mercury'
 require 'mercury/monadic'
 require 'securerandom'
+require 'mercury/sync'
 
 describe Mercury::Monadic do
   include Cps::Methods
@@ -317,6 +318,26 @@ describe Mercury::Monadic do
         and_then { m2.start_worker(worker, source, &msgs.method(:push)) }
         and_then { wait_until { msgs.size == 2 } }
         and_then { m2.close }
+      end
+    end
+  end
+
+  it 'sync and async set the same priority and delivery-mode' do
+    test_with_mercury do |m|
+      msgs = []
+      seql do
+        and_then { m.start_worker(worker, source1, proc { |m| m.ack; msgs.push(m) }) }
+        and_then { m.publish(source1, msg1) }
+        and_then { m.publish('', msg1, tag: worker) }
+        and_lift { Mercury::Sync.publish(source1, msg1) }
+        and_lift { Mercury::Sync.publish('', msg1, tag: worker) }
+        and_then { wait_until { msgs.size == 4 } }
+        and_lift do
+          msgs.each do |msg|
+            expect(msg.metadata.delivery_mode).to eql 2
+            expect(msg.metadata.priority).to eql 0
+          end
+        end
       end
     end
   end
