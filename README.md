@@ -1,4 +1,6 @@
-mercury
+# DEPRECATED: this code	has moved into ascent-web
+
+~~mercury~~
 =======
 
 Mercury is a messaging layer that hides complexity for typical messaging scenarios.
